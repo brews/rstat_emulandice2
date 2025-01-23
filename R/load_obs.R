@@ -58,7 +58,9 @@ load_obs <- function() {
     # obs_file <- obs_file[ , c("Year","Cumulative.mass.balance..mm.", "Cumulative.mass.balance.uncertainty..mm.") ]
     # names(obs_file)[2:3] <- c("SLE", "SLE_sd")
 
-    obs_file <- obs_file[ , c("YYYY.MM.DD","Cumulative.mass.balance.anomaly..mm.", "Cumulative.mass.balance.anomaly.uncertainty..mm.") ]
+    # XXX check when files final
+    if (i_s == "AIS") obs_file <- obs_file[ , c("YYYY.MM.DD","Cumulative.mass.balance.anomaly..mm.", "Cumulative.mass.balance.anomaly.uncertainty..mm.") ]
+    if (i_s == "GIS") obs_file <- obs_file[ , c("YYYY.MM.DD","Cumulative.mass.balance.anomaly..Gt.", "Cumulative.mass.balance.anomaly.uncertainty..Gt.") ]
     names(obs_file) <- c( "Year", "SLE", "SLE_sd")
 
     # Convert formats

@@ -1601,7 +1601,7 @@ if ( ! is.na(target_size) && dim(ice_data)[1] > target_size ) {
   cat(sprintf("\nNumber within emulator 95%% intervals: %.2f%%\n",
               frac_right*100.0), file = logfile_build, append = TRUE)
 
-  pdf( file = paste0( outdir, out_name, "_test_", yy, ".pdf"),
+  pdf( file = paste0( outdir, out_name, "_VALIDATION_", yy, ".pdf"),
        width = 5, height = 5)
 
   plot( test_data[ , yind], test_mean,
