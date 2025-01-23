@@ -71,7 +71,7 @@ inputs_ext <- inputs_preprocess
 stopifnot(i_s %in% c("GIS","AIS", "GLA"))
 
 # Temporary switch to go back to deliverable settings for testing
-deliverable_test <- TRUE
+deliverable_test <- FALSE
 
 impute_sims <- ifelse(i_s == "AIS" && final_year == "2150", TRUE, FALSE)
 if (deliverable_test) impute_sims <- FALSE
@@ -140,9 +140,9 @@ N_unif <- 2000L
 do_loo_validation <- FALSE
 N_k <- NA # 10L # integer for every N_k-th simulation; NA for full LOO
 
-print("***********************************************************************")
+print("************************************************************************************************")
 print("Hello! Welcome to emulandice2: build")
-print("***********************************************************************")
+print("************************************************************************************************")
 
 print(paste("Building an emulator for",ice_name,"region",reg,"..."))
 if (do_loo_validation) {
@@ -177,13 +177,13 @@ if (deliverable_test) scenario_list <- c("SSP119", "SSP126", "SSP245", "SSP370",
 if (i_s == "AIS") {
 
   # All models (do not change!)
-  model_list_full <- c( "Kori", "PISM", "CISM", "ElmerIce", "BISICLES" )
+  model_list_full <- c( "Kori", "PISM", "CISM", "ElmerIce", "BISICLES", "IMAUICE" )
   if (deliverable_test) model_list_full <- c( "Kori", "PISM", "CISM", "ElmerIce" )
 
   # Would drop short simulations anyway but early on is better for emulator inputs
   if (ensemble_subset == "GCM_forced" ||
       (ensemble_subset == "all_forced" && final_year > 2200) ) {
-    model_list <- c( "Kori", "PISM", "BISICLES" )
+    model_list <- c( "Kori", "PISM", "BISICLES", "IMAUICE" )
     if (deliverable_test) model_list <- c( "Kori", "PISM")
   } else model_list <- model_list_full
 
@@ -300,7 +300,7 @@ if (i_s == "GLA") cal_end <- 2020 # because OGGM fails if too early xxx obsolete
 
 # Antarctica
 if (i_s == "AIS") {
-  cal_start <- 2010 # for BISICLES which starts in 2007
+  cal_start <- 2015 # BISICLES starts in 2007; IMAUICE in 2014
   if (deliverable_test) cal_start <- 2000
 }
 
@@ -311,13 +311,14 @@ if (i_s == "GIS") cal_start = 2000 # xxx change to 1995 when decoupled baseline
 if (i_s == "GLA") cal_start = 2000
 
 # Check for current data ranges - change if updating data
-stopifnot(cal_end <= 2020)
+stopifnot(cal_end <= 2020) # 2021 for new IMBIE; 2023 for new new IMBIE xxx
 stopifnot( cal_start >= 1992
            || (i_s == "GLA" && cal_start >= 2000 ) )
 
 # Construct emulated time series
-proj_start <- cal_start + nyrs
-years_em <- seq( from = proj_start, by = nyrs, to = years_sim[length(years_sim)] )
+proj_start <- cal_start + 1 # nyrs
+#years_em <- seq( from = proj_start, by = nyrs, to = years_sim[length(years_sim)] )
+years_em <- c(proj_start:2024, seq( from = 2025, by = nyrs, to = years_sim[length(years_sim)] ))
 
 # End of calibration is in projection period, so check we are predicting this year
 stopifnot(cal_end %in% years_em)
@@ -459,6 +460,9 @@ if (i_s == "AIS") {
   # BISICLES
   ice_cont_list_model[["BISICLES"]] <- "heat_flux_ISMIP6_nonlocal"
   ice_factor_list_model[["BISICLES"]] <- c("shelf_collapse", "sliding_law")
+
+  # IMAUICE
+  ice_factor_list_model[["IMAUICE"]] <- "GIA"
 
   # Combine model lists
   ice_cont_list <- NA
@@ -893,8 +897,9 @@ stopifnot(N_sims > 0)
 # Ice sheet regions ------------------------------------------------------------
 
 do_regions <- FALSE # xxx for testing
-# xxx can remove this exception when remaking regional files
-if ( i_s == "AIS" && "BISICLES" %in% model_list) do_regions <- FALSE
+# xxx can remove this exception when I get IMAUICE regions and remake regional CSV files
+if ( i_s == "AIS" && (
+  "BISICLES" %in% model_list || "IMAUICE" %in% model_list)) do_regions <- FALSE
 
 if (i_s %in% c("AIS","GIS") && do_regions) {
 
@@ -1313,24 +1318,25 @@ if (impute_sims) {
   # Output is also transposed but keep this for matplot initially
   ice_data_impute <- emulandice2::SVDimpute( ice_data_proj )
 
-  pdf( file = paste0( outdir, out_name, "_impute.pdf"),
-       width = 9, height = 5)
+  #pdf( file = paste0( outdir, out_name, "_impute.pdf"),
+  #     width = 9, height = 5)
 
   # Plot imputed rows - any missing values in original data
-  matplot(seq(2020, 2150, by = 5), ice_data_impute, type = "l", col = grey(0.1, 0.1),
-          lty=1, xlab = "Year", ylab = "Sea level contribution (cm SLE)", main = i_s)
-  matlines(seq(2020, 2150, by = 5), ice_data_impute[, which(is.na(ice_data_proj), arr.ind=TRUE)],
-           type = "l", col = "red", lty = 1)
-  matlines(seq(2020, 2150, by = 5), ice_data_proj[, which(is.na(ice_data_proj), arr.ind=TRUE)],
-           type = "l", col = "black", lty = 1)
+  # XXX Fix year scale - not years_em
+ # matplot(years_em, ice_data_impute, type = "l", col = grey(0.1, 0.1),
+#          lty=1, xlab = "Year", ylab = "Sea level contribution (cm SLE)", main = i_s)
+#  matlines(years_em, ice_data_impute[, which(is.na(ice_data_proj), arr.ind=TRUE)],
+#           type = "l", col = "red", lty = 1)
+#  matlines(years_em, ice_data_proj[, which(is.na(ice_data_proj), arr.ind=TRUE)],
+#           type = "l", col = "black", lty = 1)
 
   # Zoom into main sims imputed - missing values at 2105
-  matplot(seq(2020, 2150, by = 5), ice_data_impute[, which(is.na(ice_data_proj[ "y2105", ]), arr.ind=TRUE) ],
-          type = "l", col = "red",
-          lty=1, xlab = "Year", ylab = "Sea level contribution (cm SLE)", main = paste(i_s,"imputed from 2105") )
-  matlines(seq(2020, 2150, by = 5), ice_data_proj[, which(is.na(ice_data_proj[ "y2105", ]), arr.ind=TRUE)],
-           type = "l", col = "black", lty = 1)
-  dev.off()
+  #matplot(seq(2020, 2150, by = 5), ice_data_impute[, which(is.na(ice_data_proj[ "y2105", ]), arr.ind=TRUE) ],
+  #        type = "l", col = "red",
+  #        lty=1, xlab = "Year", ylab = "Sea level contribution (cm SLE)", main = paste(i_s,"imputed from 2105") )
+  #matlines(seq(2020, 2150, by = 5), ice_data_proj[, which(is.na(ice_data_proj[ "y2105", ]), arr.ind=TRUE)],
+  #         type = "l", col = "black", lty = 1)
+  #dev.off()
 
   # Transpose to rows for simulations
   ice_data_impute <- t(ice_data_impute)
