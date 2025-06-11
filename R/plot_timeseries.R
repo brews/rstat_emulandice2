@@ -178,7 +178,7 @@ plot_timeseries <- function(data_type, plot_level = 0) {
                    border = AR6_rgb[[scen]])
 
           for (nn in 1:100) {
-            noise <- rt(1, df = N_sims-N_ts)
+            noise <- rt(1, df = N_sims-N_ts) # xxx N_sims is no longer passed in RData file
             ts_sample <- myem[[scen]]$mean[1, ] + noise * myem[[scen]]$sd[1, ]
             lines( c(cal_start, years_em), c(0, ts_sample), lwd = 0.5, col = grey(0.3, alpha = 0.4) )
           }

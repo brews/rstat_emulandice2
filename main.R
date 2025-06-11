@@ -40,7 +40,7 @@ if (length(args) == 0) {
   climate_data_file <- "../gsat/twolayer_SSPs.h5" # assumes running locally if testing
 
   # EMULATOR BUILD FILE: constructed from the above settings
-  # Directory has to match rdatadir in the build file it is loading
+  # Usual directory is rdatadir in emulator_build.R
   emu_file <- "./data-raw/GIS_ALL_CISM_pow_exp_01_EMULATOR.RData"
 
   outdir_facts <- "./out/"
@@ -68,7 +68,7 @@ stopifnot(i_s %in% c("GIS", "AIS", "GLA"))
 cat(sprintf("Region: %s\n", reg))
 stopifnot(reg %in% c("ALL", paste0("RGI", sprintf("%02i",1:19))))
 
-# Emulator build file name includes ice model_list and emulator_settings
+# Emulator build file name includes ice model_list and emulator_covar
 cat(sprintf("Emulator build file: %s\n", emu_file))
 
 # Netcdf name
@@ -187,7 +187,7 @@ total_err <- sqrt(obs_data[,"SLE_sd"]^2 + model_err^2)
 
 # This time the history matching window will include model discrepancy (total_err)
 if (plot_level > 2) {
-  pdf( file = paste0( outdir, out_name, "_SIMS.pdf"),
+  pdf( file = paste0( outdir_facts, out_name, "_SIMS.pdf"),
        width = 9, height = 5)
   emulandice2::plot_designs("sims", plot_level)
   emulandice2::plot_timeseries("sims", plot_level)
@@ -649,20 +649,20 @@ if (plot_level > 0) {
 
   pdf( file = paste0( outdir_facts, out_name, "_UNCALIBRATED.pdf"),
        width = 9, height = 5)
-  plot_designs("prior", plot_level)
-  plot_timeseries("prior", plot_level)
-  plot_scatter("prior", "AR6_2LM", plot_level)
-  plot_distributions("prior", plot_level)
+  emulandice2::plot_designs("prior", plot_level)
+  emulandice2::plot_timeseries("prior", plot_level)
+  emulandice2::plot_scatter("prior", "AR6_2LM", plot_level)
+  emulandice2::plot_distributions("prior", plot_level)
   dev.off()
 
   cat("Plot calibrated projections\n", file = logfile_results, append = TRUE)
   pdf( file = paste0( outdir_facts, out_name, "_CALIBRATED.pdf"),
        width = 9, height = 5)
-  plot_designs("posterior", plot_level)
+  emulandice2::plot_designs("posterior", plot_level)
   # Note no posterior time series plots
-  plot_scatter("posterior", "AR6_2LM", plot_level)
-  plot_distributions("posterior", plot_level)
-  plot_bayesian()
+  emulandice2::plot_scatter("posterior", "AR6_2LM", plot_level)
+  emulandice2::plot_distributions("posterior", plot_level)
+  emulandice2::plot_bayesian()
   dev.off()
 }
 
@@ -674,12 +674,6 @@ cat("...done.\n")
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
 
-# Misc notes
-# xxx Use obs_change and obs_change_err in plot_figures; implaus_thresh = 3 - done?
-
-# w <- seq(1,1000)
-# v <- sort(runif(1000))
-# AR6_rgb_med[["SSP585"]] <- rgb(132, 11, 34, maxColorValue = 255, alpha = 153) # SSP5-85
 
 
 

@@ -161,7 +161,7 @@ if (i_s == "GLA") first_year <- 1980
 years_sim <- first_year:final_year
 
 # Timeslice frequency to predict (see below: first date is cal_start + nyr)
-nyrs = 5
+nyrs <- 10 # 5 # BISICLES test xxx
 
 # Check reasonable choice
 stopifnot(nyrs %in% c(1, 2, 5, 10))
@@ -186,6 +186,8 @@ if (i_s == "AIS") {
     model_list <- c( "Kori", "PISM", "BISICLES", "IMAUICE" )
     if (deliverable_test) model_list <- c( "Kori", "PISM")
   } else model_list <- model_list_full
+
+  model_list <- "BISICLES" # test xxx
 
 }
 
@@ -214,15 +216,17 @@ if (i_s == "GIS") {
 if (i_s == "GLA") {
 
   # All models (do not change!)
-  model_list_full <- c( "GloGEM", "OGGM") # XXX "GO" )
+  model_list_full <- c( "GloGEM", "OGGM", "GO" )
 
   # Pick models to use
   model_list <- model_list_full
 
   # Fraction of glaciers that must have completed (guidance from Fabien Maussion)
-  # Currently only applied to OGGM; XXX add GO model to select_sims()
+  # Selection is done in select_sims()
+  # Only OGGM and GO have completion % information, not GloGEM
   # Some regions only reach ~92% so can't go higher without adjusting
-  complete_thresh <- 0.90 # NA to not use
+  # XXX Later change to 0.8 for GO Russian Arctic and AIS peripherals, 0.9 otherwise?
+  complete_thresh <- 0.80 # NA to not use
   if (deliverable_test) complete_thresh <- 0.80
 
 }
@@ -240,28 +244,28 @@ stopifnot( length( setdiff(model_list, model_list_full )) == 0 )
 
 # XXX Specify by ice sheet sector later if using
 
-if ( i_s == "AIS") emulator_settings <- "pow_exp_10"
+if ( i_s == "AIS") emulator_covar <- "pow_exp_10"
 
-if ( i_s == "GIS") emulator_settings <- "pow_exp_01"
+if ( i_s == "GIS") emulator_covar <- "pow_exp_01"
 
 if ( i_s == "GLA") {
 
   # Default: squared exponential (Gaussian: smooth)
-  emulator_settings <- "pow_exp_20"
+  emulator_covar <- "pow_exp_20"
 
   # 3rd Jan 2024: Make some large regions more linear if still over-fitting
-  if (reg_num %in% c(1, 4, 5, 7, 19)) emulator_settings <- "pow_exp_01"
+  if (reg_num %in% c(1, 4, 5, 7, 19)) emulator_covar <- "pow_exp_01"
 
 }
-stopifnot(emulator_settings %in% c("matern_5_2", "matern_3_2",
-                                   "pow_exp_01", "pow_exp_10",
-                                   "pow_exp_19", "pow_exp_20"))
+stopifnot(emulator_covar %in% c("matern_5_2", "matern_3_2",
+                                "pow_exp_01", "pow_exp_10",
+                                "pow_exp_19", "pow_exp_20"))
 
 #' ## Open output file
 
 # Create name for output files
 out_name <- paste0(i_s,"_",reg,"_",paste(model_list, collapse = "_"),
-                   "_", emulator_settings)
+                   "_", emulator_covar)
 logfile_build <- paste0(outdir, out_name,"_build.txt")
 
 #______________________________________________________
@@ -275,7 +279,7 @@ cat(paste( "MODELS:", paste(model_list, collapse = ", "), "\n"), file = logfile_
 cat(paste("\nDate range of simulations to be used:",
           years_sim[1],"-", years_sim[length(years_sim)], "\n"),
     file = logfile_build, append = TRUE)
-cat(paste("\nEmulator covariance:",emulator_settings,"\n"), file = logfile_build, append = TRUE)
+cat(paste("\nEmulator covariance:",emulator_covar,"\n"), file = logfile_build, append = TRUE)
 
 #' ## Glacier maximum contributions
 # Get glacier cap --------
@@ -302,6 +306,7 @@ if (i_s == "GLA") cal_end <- 2020 # because OGGM fails if too early xxx obsolete
 if (i_s == "AIS") {
   cal_start <- 2015 # BISICLES starts in 2007; IMAUICE in 2014
   if (deliverable_test) cal_start <- 2000
+  cal_start <- 2007 # BISICLES xxx
 }
 
 # Greenland
@@ -316,15 +321,24 @@ stopifnot( cal_start >= 1992
            || (i_s == "GLA" && cal_start >= 2000 ) )
 
 # Construct emulated time series
-proj_start <- cal_start + 1 # nyrs
+#proj_start <- cal_start + 1 # was nyrs
 #years_em <- seq( from = proj_start, by = nyrs, to = years_sim[length(years_sim)] )
-years_em <- c(proj_start:2024, seq( from = 2025, by = nyrs, to = years_sim[length(years_sim)] ))
+break_yr <- 2020
+years_em <- c( (cal_start + 1):break_yr-1, seq( from = break_yr, by = nyrs, to = years_sim[length(years_sim)] ))
+
+# BISICLES tests xxx drop a couple
+years_em <- years_em[ -(length(years_em)-1) ]
+years_em <- years_em[ -(length(years_em)-2) ]
+years_em <- years_em[ -(length(years_em)-4) ]
+
+# Basic check not done something daft with timeslices
+stopifnot(2100 %in% years_em)
 
 # End of calibration is in projection period, so check we are predicting this year
 stopifnot(cal_end %in% years_em)
 
-cat( paste("Predicting every", nyrs, "years from",
-           years_em[1], "to", years_em[length(years_em)], "\n"),
+cat( paste("Predicting annually from", years_em[1], "to", break_yr,
+           "then every", nyrs, "years to", years_em[length(years_em)], "\n"),
      file = logfile_build, append = TRUE)
 cat(paste("with respect to year", cal_start, "\n"), file = logfile_build, append = TRUE)
 
@@ -451,7 +465,7 @@ if (i_s == "AIS") {
   # Local only varied for 2100 runs
   # which are imputed to 2150 if impute_sims = TRUE
   if (final_year == "2100" || impute_sims) ice_cont_list_model[["CISM"]] <- c(ice_cont_list_model[["CISM"]],
-                                                               "heat_flux_ISMIP6_local")
+                                                                              "heat_flux_ISMIP6_local")
   ice_factor_list_model[["CISM"]] <- c("melt_param", "sliding_law")
 
   # Elmer/Ice
@@ -548,10 +562,16 @@ if (i_s == "GLA") {
   ice_cont_list_model[["OGGM"]] <- c("prec_corr_factor", "ddf_ice",
                                      "temp_melt", "temp_bias", "glen_a")
 
-  # Both
+  # GO
+  ice_cont_list_model[["OGGM"]] <- c("prec_corr_factor", "ice_albedo",
+                                     "temp_sens", "psi_constant","trans",
+                                     "t_tip", "t_phase")
+
+  # Combine
   ice_cont_list <- NA
   if ("GloGEM" %in% model_list) ice_cont_list <- c(ice_cont_list, ice_cont_list_model[["GloGEM"]])
   if ("OGGM" %in% model_list) ice_cont_list <- c(ice_cont_list, ice_cont_list_model[["OGGM"]])
+  if ("GO" %in% model_list) ice_cont_list <- c(ice_cont_list, ice_cont_list_model[["GO"]])
   ice_cont_list <- ice_cont_list[-1]
   ice_cont_list <- unique( ice_cont_list )
 
@@ -587,25 +607,26 @@ if (include_factors) {
 #' ## Emulator details
 
 # Could set to FALSE if want to check for inert inputs
-lower_bound <- TRUE # RobustGaSP default
+lower_bound <- TRUE # RobustGaSP default = TRUE
 alpha = NA
 
-if (emulator_settings == "matern_5_2") kernel <- "matern_5_2"
-if (emulator_settings == "matern_3_2") kernel <- "matern_3_2"
+# Matern
+if (emulator_covar %in% c("matern_5_2", "matern_3_2")) kernel <- emulator_covar
 
-if (emulator_settings == "pow_exp_01") {
+# Power exponential
+if (emulator_covar == "pow_exp_01") {
   kernel <- "pow_exp"
   alpha = 0.1
 }
-if (emulator_settings == "pow_exp_10") {
+if (emulator_covar == "pow_exp_10") {
   kernel <- "pow_exp"
   alpha = 1.0
 }
-if (emulator_settings == "pow_exp_19") {
+if (emulator_covar == "pow_exp_19") {
   kernel <- "pow_exp"
   alpha = 1.9 # default for pow_exp
 }
-if (emulator_settings == "pow_exp_20") {
+if (emulator_covar == "pow_exp_20") {
   kernel <- "pow_exp"
   alpha = 2.0
 }
@@ -802,16 +823,17 @@ if ( i_s == "GIS" && final_year > 2100) {
 
 ice_data <- emulandice2::load_sims(variable = "ice", source = i_s, region = reg) # ice dataset
 
-# Index of first column with name format yXXXX
+# Index of first column with name format of yXXXX
 ice_file_yr_start_col <- suppressWarnings( myind <- min(which( nchar(names(ice_data)) == 5
                                                                & substr(names(ice_data), start = 1, stop = 1) == "y"
                                                                & !is.na(as.numeric(substr(names(ice_data), start = 2, stop = 5)) ) ) ) )
 # Get full data year range: i.e. from this col to last
-ice_file_yr_start <- as.numeric(substr(names(ice_data)[ice_file_yr_start_col], 2, 5))
-ice_file_yr_end <- as.numeric(substr(names(ice_data)[length(names(ice_data))], 2, 5))
+#ice_file_yr_start <- as.numeric(substr(names(ice_data)[ice_file_yr_start_col], 2, 5))
+#ice_file_yr_end <- as.numeric(substr(names(ice_data)[length(names(ice_data))], 2, 5))
 
-# Check requested years_sim are within file year range
-stopifnot(min(years_sim) >= ice_file_yr_start && max(years_sim) <= ice_file_yr_end )
+# Check requested years_sim are within file year range from these columns
+stopifnot(min(years_sim) >= as.numeric(substr(names(ice_data)[ ice_file_yr_start_col ], 2, 5)) &&
+            max(years_sim) <= as.numeric(substr(names(ice_data)[ length(names(ice_data)) ], 2, 5)) )
 
 # Get column number of first ice model input
 # which is first one after this list
@@ -876,11 +898,11 @@ if (length(temps_list) == 1) { temps <- as.numeric(temps)
 } else temps <- apply(temps, 2, as.numeric)
 
 
-# Find simulations that do not have (last timeslice if multiple) forcing
+# Find ice simulations that have climate forcing (just last timeslice if multiple)
 if ( length(temps_list) == 1 ) { sim_index <- !is.na(temps)
 } else sim_index <- !is.na(temps[, length(temps_list)])
 
-# Exclude these from both ice and climate data
+# Keep only these in both ice and climate data
 ice_data <- ice_data[ sim_index, ]
 if ( length(temps_list) == 1) { temps <- temps[ sim_index ]
 } else temps <- temps[ sim_index, ]
@@ -1150,13 +1172,12 @@ for ( pp in ice_param_list ) {
 }
 
 # Check for NAs in columns we plan to use to emulate, otherwise fail
-cols_to_check <- ice_data[ , ice_param_list ]
-if (anyNA(cols_to_check)) stop("NAs found in ice_data columns to use as inputs in emulation: please drop/fix")
+if (anyNA( ice_data[ , ice_param_list ] )) stop("NAs found in ice_data columns to use as inputs in emulation: please drop/fix")
 
 # COMBINE CLIMATE FORCING AND CONTINUUOUS ICE MODEL INPUTS INTO DESIGN MATRIX
 ice_design <- as.matrix( data.frame(temps, ice_data[ ice_cont_list ]) )
 
-# Add climate col name(s0)
+# Add climate col names
 colnames(ice_design)[ 1:length(temps_list) ] <- temps_list_names
 
 # Create axis label for plots
@@ -1183,21 +1204,21 @@ if ( include_factors ) {
 
     cat(paste("Levels:", length(ff_vals), "\n"), file = logfile_build, append = TRUE)
 
-    # Take first alphabetical value as reference/nominal
-    ff_ref <- ff_vals[1]
-
-    cat(paste("Adding dummy variables with reference value:", ff_ref, "\n"), file = logfile_build, append = TRUE)
+    # First alphabetical value will be reference/nominal: ff_vals[1]
+    cat(paste("Adding dummy variables with reference value:", ff_vals[1], "\n"), file = logfile_build, append = TRUE)
 
     for ( vv in ff_vals ) {
 
-      # Drop one level to avoid collinearity
-      if (vv == ff_ref) next
+      # Drop first (reference) level to avoid collinearity
+      if (vv == ff_vals[1]) next
 
       # Name of column is factor:level
       cat(paste0("Generating column ", ff, ":", vv, "\n"), file = logfile_build, append = TRUE)
-      dummy <- ifelse(ice_data[, ff] == vv, 1, 0 )
-      ice_design <- cbind(ice_design, dummy)
+
+      # Set to 1 or 0
+      ice_design <- cbind(ice_design, ifelse(ice_data[, ff] == vv, 1, 0 ) )
       colnames(ice_design)[dim(ice_design)[2]] <- paste(ff, vv, sep = ":")
+
     }
     # Alternative code
     # for (j in 1:length(ff_vals)) dummy[,j] <- as.integer(ice_data[, ff] == ff_vals[j])
@@ -1212,11 +1233,13 @@ if ( include_factors ) {
 input_cont_list <- c(temps_list_names, ice_cont_list)
 
 # Save list of ice inputs: not ice_param_list but expanded dummy versions
-ice_all_list <- ice_cont_list
 ice_dummy_list <- NA
+
 if (include_factors) {
   ice_dummy_list <- colnames(ice_design)[ ! colnames(ice_design) %in% input_cont_list]
-  ice_all_list <- c( ice_all_list, ice_dummy_list)
+  ice_all_list <- c( ice_cont_list, ice_dummy_list)
+} else {
+  ice_all_list <- ice_cont_list
 }
 
 
@@ -1323,12 +1346,12 @@ if (impute_sims) {
 
   # Plot imputed rows - any missing values in original data
   # XXX Fix year scale - not years_em
- # matplot(years_em, ice_data_impute, type = "l", col = grey(0.1, 0.1),
-#          lty=1, xlab = "Year", ylab = "Sea level contribution (cm SLE)", main = i_s)
-#  matlines(years_em, ice_data_impute[, which(is.na(ice_data_proj), arr.ind=TRUE)],
-#           type = "l", col = "red", lty = 1)
-#  matlines(years_em, ice_data_proj[, which(is.na(ice_data_proj), arr.ind=TRUE)],
-#           type = "l", col = "black", lty = 1)
+  # matplot(years_em, ice_data_impute, type = "l", col = grey(0.1, 0.1),
+  #          lty=1, xlab = "Year", ylab = "Sea level contribution (cm SLE)", main = i_s)
+  #  matlines(years_em, ice_data_impute[, which(is.na(ice_data_proj), arr.ind=TRUE)],
+  #           type = "l", col = "red", lty = 1)
+  #  matlines(years_em, ice_data_proj[, which(is.na(ice_data_proj), arr.ind=TRUE)],
+  #           type = "l", col = "black", lty = 1)
 
   # Zoom into main sims imputed - missing values at 2105
   #matplot(seq(2020, 2150, by = 5), ice_data_impute[, which(is.na(ice_data_proj[ "y2105", ]), arr.ind=TRUE) ],
@@ -1389,17 +1412,17 @@ if ( ! is.na(target_size) && dim(ice_data)[1] > target_size ) {
 
   # Output factors
   cat("\n** Factor levels being used for ordering:\n", file = logfile_build, append = TRUE)
-  for (j in which(sapply(Xraw, is.factor))) {
-    cat(paste0("\t", names(Xraw)[j], ":\n"), file = logfile_build, append = TRUE)
-    cat(paste0("\t", paste(levels(Xraw[[j]]), collapse = ", "), "\n"), file = logfile_build, append = TRUE)
+  for (jj in which(sapply(Xraw, is.factor))) {
+    cat(paste0("\t", names(Xraw)[ jj ], ":\n"), file = logfile_build, append = TRUE)
+    cat(paste0("\t", paste(levels(Xraw[[ jj ]]), collapse = ", "), "\n"), file = logfile_build, append = TRUE)
   }
 
   ## Reorder dataset to make sure factor levels well-sampled at start of list
   # (simple random if no factors)
-  oo <- reorder_rows(Xraw, frontLoad = TRUE)
+  reordered <- reorder_rows(Xraw, frontLoad = TRUE)
 
   # Select first N_subset of rows
-  train <- oo[1:target_size_min]
+  train <- reordered[1:target_size_min]
 
   # Was random sample for deliverable
   if (deliverable_test) train <- sort(sample(nrow(ice_data), target_size_min))
@@ -1410,9 +1433,9 @@ if ( ! is.na(target_size) && dim(ice_data)[1] > target_size ) {
   Y <- Y[ train, ]
 
   cat("\n** Factor levels present in training subset:\n", file = logfile_build, append = TRUE)
-  for (j in which(sapply(Xraw, is.factor))) {
-    cat(paste0("\t", names(Xraw)[j], ":\n"), file = logfile_build, append = TRUE)
-    cat(paste0("\t", paste(levels(Xraw[[j]]), collapse = ", "), "\n"), file = logfile_build, append = TRUE)
+  for (jj in which(sapply(Xraw, is.factor))) {
+    cat(paste0("\t", names(Xraw)[ jj ], ":\n"), file = logfile_build, append = TRUE)
+    cat(paste0("\t", paste(levels(Xraw[[ jj ]]), collapse = ", "), "\n"), file = logfile_build, append = TRUE)
   }
 
 }
@@ -1569,7 +1592,7 @@ if (do_loo_validation) {
 if ( ! is.na(target_size) && dim(ice_data)[1] > target_size ) {
 
   # Get index of all rows except training data
-  test_set <- oo[-(1:target_size_min)]
+  test_set <- reordered[-(1:target_size_min)]
 
   # Get test dataset
   test_data <- ice_data[ test_set, ]
@@ -1634,23 +1657,58 @@ if ( ! is.na(target_size) && dim(ice_data)[1] > target_size ) {
   text( yrange[1], yrange[1] + 0.95*(yrange[2] - yrange[1]), pos = 4,
         ice_name, cex = 1.3)
 
-  col_text <- ifelse(frac_right < 0.9, "red", "black")
   text( yrange[1], yrange[1] + 0.85*(yrange[2] - yrange[1]), pos = 4,
-        sprintf("%.0f%%", frac_right*100.0), col = col_text)
+        sprintf("%.0f%%", frac_right*100.0), col = ifelse(frac_right < 0.9, "red", "black") )
 
   dev.off()
 
 }
 
 
+# ________________----
+# SAVE BUILD FILE ------------------------------------------------------------
 #' # Save emulator build file
 
 # SAVE EMULATOR BUILT FROM WHOLE ENSEMBLE
 # and the rest of the workspace, at least for now
 RData_file <- paste0(rdatadir, out_name, "_EMULATOR.RData")
-save.image( file = RData_file )
+#save.image( file = RData_file )
 
-cat(paste("\nSaved RData file:",RData_file,"\n"), file = logfile_build, append = TRUE)
+# Bit of duplication or unused
+to_save <- c("climate_data", # CLIMATE MODEL SIMULATION DATA
+             "ice_data", # ICE MODEL SIMULATION DATA
+             "obs_data", # OBSERVATION DATA
+             "inputs_preprocess", "inputs_ext", # Paths for package data
+             "out_name", # General part of all output filenames
+             "outdir", "logfile_build", # Used to write output in emulator function (see below)
+             "deliverable_test", "do_regions", "impute_sims", # Analysis flags for info
+             "model_list", # Could reconstruct from filename, but useful to have
+             "scen_name", # Nicely formatted lookup name list of all scenarios looked for in datas
+             "years_sim", # List of simulated years
+             "ice_design", # Simulation ensemble design, i.e. input values
+             "ice_param_list_full", # Lists of simulated inputs
+             "ice_cont_list", "ice_factor_list", "ice_all_list", # Lists of emulated inputs: continuous, factors, all
+             "ice_dummy_list", "ice_factor_values", # Dummy column names and values for factor inputs
+             "N_temp_yrs", # GSAT mean years; used in priors
+             "temps", "temps_baseline", "temps_list", "temps_list_names", # GSAT means and names used
+             "input_cont_list", # List of emulated continuous inputs, i.e. c(temps_list_names, ice_cont_list)
+             "emu_mv", # EMULATOR! function object
+             "lower_bound", "kernel", "alpha", "include_factors", # Used in emulator function object
+             "years_em", "N_ts", # List and number of emulated years
+             "inputs_centre", "inputs_scale", # Rescaling values for transforming params before/after emulation
+             "first_year", "final_year", "cal_start", "cal_end", # Dates of data and calibration period
+             "yy_plot", # Dates to plot
+             "ice_name", # Nice ice source name for plots
+             "GSAT_lab", # Nice plotting labels for GSAT means
+             "sle_lim", "sle_inc", "ylim_obs", # Plotting ranges and increments (inc not used currently)
+             "AR6_rgb", "AR6_rgb_light", "AR6_rgb_med" # Plotting colours
+)
+
+if (i_s == "GLA") to_save <- c(to_save, "glacier_cap") # Glacier region maximum contributions
+
+save(list = to_save, file = RData_file)
+
+cat(paste("\nSaved objects to RData file:",RData_file,"\n"), file = logfile_build, append = TRUE)
 
 
 

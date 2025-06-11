@@ -401,7 +401,7 @@ plot_scatter <- function(data_type, design_name, plot_level = 0) {
 
   } # plot_level >= 2
 
-  # * MAIN EFFECTS ------------------------------------------------------------
+  # * BUILD: MAIN EFFECTS ------------------------------------------------------------
 
   # EMULATOR MAIN EFFECTS
   # Called from emulator_build.R

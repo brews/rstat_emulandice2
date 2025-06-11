@@ -53,7 +53,7 @@ load_design_to_pred <- function(design_name, N_samp = NA) {
   # SET EMPIRICAL PRIOR FOR Greenland
   if (i_s == "GIS") {
 
-    if ("retreat" %in% ice_param_list) {
+    if ("retreat" %in% ice_cont_list) {
 
       cat("Prior for retreat: empirical (Slater et al.)\n", file = logfile_design, append = TRUE)
 

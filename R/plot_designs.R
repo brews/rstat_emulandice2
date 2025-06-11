@@ -57,7 +57,7 @@ plot_designs <- function(data_type, plot_level = 0) {
         # These are the column indices for all ice model inputs in the CSV (see main.R)
         # i.e. between "ice_source", "region", "group", "model","scenario"
         # and y_1,..., y_last
-        param_cols <- ice_param_col_1:ice_param_col_2
+        #param_cols <- ice_param_col_1:ice_param_col_2
 
         # Exclude column of NAs
         # xxx YUK!! change to col name at least, or do NA check as below for factor plots
@@ -165,6 +165,7 @@ plot_designs <- function(data_type, plot_level = 0) {
     # PLOT: SIMULATED SLE VS EMULATOR/ALL INPUTS
     # print("Box and scatter plots: sea level contribution vs all model inputs")
 
+    # Loop over full input list in data file, not just inputs selected for emulation
     for ( pp in ice_param_list_full) {
 
       # If emulator input or plot all inputs
