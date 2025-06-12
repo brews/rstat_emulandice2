@@ -28,9 +28,48 @@ plot_designs <- function(data_type, plot_level = 0) {
 
     # GSAT
     if (plot_level >= 1) {
-      matplot( first_year:final_year, t(climate_data[ , paste0("y", first_year:final_year) ]), type = "l", lty = 1,
-                     xlab = "Year", ylab = "Global mean temperature (degC)")
-    }
+
+      # Plot GSAT anomalies w.r.t. 2015 for now
+      to_plot <- climate_data[, 3:dim(climate_data)[2]] - climate_data[,"y2015"]
+      to_plot_scen <- climate_data[, "scenario" ]
+
+      # Add fixed climate forcings for GIS
+      if ( i_s == "GIS" && final_year > 2100) {
+        to_plot <- rbind( to_plot, climate_data_fixed[, 3:dim(climate_data_fixed)[2]] - climate_data_fixed[,"y2015"])
+        to_plot_scen <- c(to_plot_scen, paste(climate_data_fixed[, "scenario" ], "fixed"))
+      }
+
+      plot(first_year:final_year, to_plot[1,], type = "n",
+           ylim = range( to_plot ),
+           xlim = c(first_year, final_year), xaxs = "i",
+           xlab = "Year", ylab = "Global mean temperature relative to 2015 (degC)")
+      abline(h=0, lwd=0.5)
+      for( ss in 1:dim(to_plot)[1]) {
+        col <- AR6_rgb[[ to_plot_scen[ ss ]  ]]
+        if (is.null(col)) col <- AR6_rgb_med[[ strsplit(to_plot_scen[ ss ], " ")[[1]][1]  ]]
+        if (is.null(col)) col <- "grey"
+        lines( first_year:final_year, to_plot[ss, ], col = col, lwd = 1.2)
+      }
+      yleg <- 0.95
+
+      for ( ff in sort(unique( to_plot_scen ) )) {
+
+        # Look up nice name
+        textlab <- scen_name[[ff]]
+        if (is.null(textlab)) textlab <- paste(scen_name[[strsplit(ff, " ")[[1]][1] ]], "fixed")
+        if (is.null(scen_name[[strsplit(ff, " ")[[1]][1] ]])) textlab <- ff # Or just use raw label
+
+        # Same for colour
+        col <- AR6_rgb[[ ff ]]
+        if (is.null(col)) col <- AR6_rgb_med[[ strsplit( ff, " ")[[1]][1]  ]]
+        if (is.null(col)) col <- "grey"
+
+        text( first_year, yleg * max( to_plot ), pos = 4,
+              textlab, col = col)
+        yleg <- yleg - 0.07
+      }
+
+    } # plot level >= 1
 
     # Colour scale: maximum range of data
     if (min( ice_data[, paste0("y", c(cal_end:max(years_em))) ], na.rm = TRUE) < 0) {

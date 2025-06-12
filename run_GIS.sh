@@ -60,11 +60,11 @@ for ssp in "ssp119" "ssp126" "ssp245" "ssp370" "ssp585" "ssp534-over"
 
   echo "GSAT file:" $gsat_file
 
-  ./emulandice_steer.sh GIS ALL ./data-raw/"$build_file" "$gsat_dir"/"$gsat_file" $ssp ./out/GIS_ALL_"$ssp"_"$final_year"/ 2024 GIS_ALL_"$ssp"_"$final_year"
+  #./emulandice_steer.sh GIS ALL ./data-raw/"$build_file" "$gsat_dir"/"$gsat_file" $ssp ./out/GIS_ALL_"$ssp"_"$final_year"/ 2024 GIS_ALL_"$ssp"_"$final_year"
 
   done
 
 # Won't move if predictions exist already
-mkdir $outdir
-mv "$emulandice_dir"/out/GIS* "$emulandice_dir"/data-raw/GIS* $outdir
+#mkdir $outdir
+#mv "$emulandice_dir"/out/GIS* "$emulandice_dir"/data-raw/GIS* $outdir
 

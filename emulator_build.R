@@ -73,10 +73,14 @@ stopifnot(i_s %in% c("GIS","AIS", "GLA"))
 # Temporary switch to go back to deliverable settings for testing
 deliverable_test <- FALSE
 
+# Just read, filter and plot simulations (for testing etc)
+read_sims_only <- TRUE
+
+# Impute missing years in simulations: currently just AIS to 2150
 impute_sims <- ifelse(i_s == "AIS" && final_year == "2150", TRUE, FALSE)
 if (deliverable_test) impute_sims <- FALSE
 
-# Later there are options to pick sub-ensembles
+# Later there are options to pick sub-ensembles (obsolete / not used?)
 ensemble_subset <- NA
 
 # Region is set here
@@ -169,6 +173,8 @@ stopifnot(nyrs %in% c(1, 2, 5, 10))
 # Full list of possible emissions scenarios to look for
 # (dropped from unif_temps design if not simulated)
 # over-recon is Heiko's reconstruction of SSP534-over forcing
+
+# XXX SHOULD I ADD RCPS FOR GIS?? CHECK WHERE USED IN SIM PLOTS
 scenario_list <- c("SSP119", "SSP126", "SSP245", "SSP370", "SSP534-over", "SSP534-over-recon", "SSP585")
 if (deliverable_test) scenario_list <- c("SSP119", "SSP126", "SSP245", "SSP370", "SSP585")
 
@@ -652,10 +658,13 @@ do_loo_years <- do_loo_years[ do_loo_years %in% years_em ]
 if (do_loo_validation && length(do_loo_years) == 0 ) warning("None of requested LOO years are in predictions")
 
 # Match short and full scenario names for plots
+# xxx ADD RCPs?
 scen_name <- list()
 for (scen in scenario_list) {
   tmp <- strsplit(scen, split="")[[1]]
   scen_name[[scen]] <- paste( c(tmp[1:4], "-", tmp[5], ".", tmp[6]), collapse = "")
+
+  if (scen %in% c("SSP534-over", "SSP534-over-recon")) scen_name[[scen]] <- "SSP5-3.4-OS"
 }
 
 # Plot limits for each yy_plot timeslice
@@ -737,6 +746,9 @@ AR6_rgb[["SSP245"]] <- rgb(247, 148, 32, maxColorValue = 255)
 AR6_rgb[["SSP370"]] <- rgb(231, 29, 37, maxColorValue = 255)
 AR6_rgb[["SSP585"]] <- rgb(149, 27, 30, maxColorValue = 255)
 
+AR6_rgb[["RCP26"]] <- rgb(23, 60, 102, maxColorValue = 255)
+AR6_rgb[["RCP85"]] <- rgb(149, 27, 30, maxColorValue = 255)
+
 # 60% transparency
 AR6_rgb_med <- list()
 alpha_med <- 153
@@ -745,6 +757,9 @@ AR6_rgb_med[["SSP126"]] <- rgb(23, 60, 102, maxColorValue = 255, alpha = alpha_m
 AR6_rgb_med[["SSP245"]] <- rgb(247, 148, 32, maxColorValue = 255, alpha = alpha_med)
 AR6_rgb_med[["SSP370"]] <- rgb(231, 29, 37, maxColorValue = 255, alpha = alpha_med)
 AR6_rgb_med[["SSP585"]] <- rgb(149, 27, 30, maxColorValue = 255, alpha = alpha_med)
+
+AR6_rgb_med[["RCP26"]] <- rgb(23, 60, 102, maxColorValue = 255, alpha = alpha_med)
+AR6_rgb_med[["RCP85"]] <- rgb(149, 27, 30, maxColorValue = 255, alpha = alpha_med)
 
 # 10% transparency; 20% = 51
 AR6_rgb_light <- list()
@@ -755,12 +770,19 @@ AR6_rgb_light[["SSP245"]] <- rgb(247, 148, 32, maxColorValue = 255, alpha = alph
 AR6_rgb_light[["SSP370"]] <- rgb(231, 29, 37, maxColorValue = 255, alpha = alpha_light)
 AR6_rgb_light[["SSP585"]] <- rgb(149, 27, 30, maxColorValue = 255, alpha = alpha_light)
 
+AR6_rgb_light[["RCP26"]] <- rgb(23, 60, 102, maxColorValue = 255, alpha = alpha_light)
+AR6_rgb_light[["RCP85"]] <- rgb(149, 27, 30, maxColorValue = 255, alpha = alpha_light)
+
 # Overshoot colour
 # According to
 # https://pyam-iamc.readthedocs.io/en/stable/tutorials/ipcc_colors.html
 AR6_rgb[["SSP534-over"]] <- rgb(146, 57, 122, maxColorValue = 255)
 AR6_rgb_med[["SSP534-over"]] <- rgb(146, 57, 122, maxColorValue = 255, alpha = alpha_med)
 AR6_rgb_light[["SSP534-over"]] <- rgb(146, 57, 122, maxColorValue = 255, alpha = alpha_light)
+
+AR6_rgb[["SSP534-over-recon"]] <- rgb(146, 57, 122, maxColorValue = 255)
+AR6_rgb_med[["SSP534-over-recon"]] <- rgb(146, 57, 122, maxColorValue = 255, alpha = alpha_med)
+AR6_rgb_light[["SSP534-over-recon"]] <- rgb(146, 57, 122, maxColorValue = 255, alpha = alpha_light)
 
 # PLOT RANGES
 
@@ -799,19 +821,19 @@ obs_data <- emulandice2::load_obs()
 # Returns CSV file data
 climate_csv <- emulandice2::load_sims(variable = "climate")
 
-# Fill 2100 and 2300 values
-# Impute with mean of SSP if GCM ends too soon
+# Fill any missing final year values (all rows in climate file - not very efficient)
 climate_data <- impute_climate(climate_csv)
 
 # XXX DROP ROWS NOT IN CSV HERE I THINK
 
 # Calculate climate change timeslice(s) e.g. GSAT_2100 for emulator input(s)
-# Same number of rows as climate data
+# Also for all rows in climate data - not very effcient
 # Option to add ensemble mean for each SSP for missing forcings
+# (for imputing ice simulations later)
 temps_data <- emulandice2::calc_temps(climate_data, mean_impute = impute_sims)
 
-# For GIS post-2100 repeat with fixed climate forcings
-# No need to impute because this is already filling in
+# For GIS post-2100, repeat with fixed climate forcings
+# No need to set mean_impute, because this is already filling in [?]
 if ( i_s == "GIS" && final_year > 2100) {
   climate_data_fixed <- impute_climate(climate_csv, construct_fixed = TRUE)
   temps_data_fixed <- emulandice2::calc_temps(climate_data_fixed)
@@ -876,14 +898,17 @@ if (deliverable_test) {
 # Match climate ---------------------------------------------------------------
 
 # Get corresponding climate change(s) (match by GCM + scenario)
-temps <- emulandice2::match_gcms(ice_data, temps_data, mean_impute = TRUE)
+temps <- emulandice2::match_gcms(ice_data, temps_data, mean_impute = impute_sims) # XXX CHECK: was TRUE
 
 # For GIS post-2100, get fixed climate forcing change(s)
 # and overwrite into rows of temps with fixed_date = 2100
 if (i_s == "GIS" && final_year > 2100) {
 
-  fixed_ind <- ice_data$fixed_date == 2100
-  fixed_ind <- !is.na(fixed_ind)
+  # Index of simulations forced with fixed climate from 2100 (column flag in dataset)
+  fixed_ind <- ice_data$fixed_date == 2100 & !is.na(ice_data$fixed_date)
+
+  cat("\nNow try matching again after reconstructing fixed post-2100 forcings im dataset\n",
+      file = logfile_build, append = TRUE)
 
   temps_fixed <- emulandice2::match_gcms(ice_data, temps_data_fixed)
   temps[ fixed_ind, ] <- temps_fixed[ fixed_ind, ]
@@ -907,11 +932,94 @@ ice_data <- ice_data[ sim_index, ]
 if ( length(temps_list) == 1) { temps <- temps[ sim_index ]
 } else temps <- temps[ sim_index, ]
 
+
 # END OF ICE SIMULATION SELECTION
 N_sims <- dim(ice_data)[1]
 
 cat(paste("\nFINAL DATA SELECTION: using", N_sims, "ice simulations for",
           i_s, reg, "\n"), file = logfile_build, append = TRUE)
+
+cat("\nOf which:", "\n", file = logfile_build, append = TRUE)
+for (mm in model_list) {
+  cat( paste0(mm, ": ", length( ice_data[ice_data$model == mm, 1] )), "\n",
+       file = logfile_build, append = TRUE)
+}
+
+# Retrieve Greenland fixed post-2100 climate forcings
+if ( i_s == "GIS" && final_year > 2100) {
+
+  # Update fixed_ind with final ice simulation dataset
+  fixed_ind <- ice_data$fixed_date == 2100 & !is.na(ice_data$fixed_date)
+
+  cat(paste("\nNumber of simulations forced with fixed post-2100 climate:",
+            dim(ice_data[ fixed_ind, ])[1], "\n"),
+      file = logfile_build, append = TRUE)
+
+  match_sims_fixed <- unique(ice_data[ fixed_ind, c("scenario", "GCM")])
+
+  # Also select in climate_data for full time series forcing plot
+  climate_data_test <- apply(match_sims_fixed, 1, function(x) { # as in match_gcms()
+
+    # For each row in forcings list, get climate timeseries
+    climate_data_fixed[ climate_data_fixed$GCM == x[ "GCM" ]
+                        & climate_data_fixed$scenario == x[ "scenario"], ]
+  })
+
+  # Ugh: convert list to numeric matrix...
+  tmp <- matrix(0.0, nrow = dim(match_sims_fixed)[1], ncol = dim(climate_data_fixed)[2] - 2)
+  for ( cc in 1:length(climate_data_test)) {
+    tmp[ cc, ] <- as.numeric(unlist(climate_data_test[[cc]][, 3:dim(climate_data_fixed)[2]]))
+  }
+  colnames(tmp) <- colnames(climate_data_fixed[ , 3:dim(climate_data_fixed)[2]])
+
+  # Overwrite old climate_data_fixed with selected this subset and scenario/GCM columns
+  climate_data_fixed <- cbind(match_sims_fixed, tmp)
+
+  # Print
+  cat(paste("\nUsing these",dim(match_sims_fixed)[1],"forcings fixed from 2100:\n"),
+      file = logfile_build, append = TRUE)
+  ms <- match_sims_fixed[ sort(match_sims_fixed[,"scenario"], index.return = TRUE)$ix, ]
+  for( mm in 1:dim(ms)[1]) {
+    cat( unlist(ms[mm, c("scenario", "GCM")]), "\n", file = logfile_build, append = TRUE)
+  }
+
+}
+
+# Get final list of scenarios and GCMs to write to text and plot forcings (not very efficient!)
+if ( i_s == "GIS" && final_year > 2100) {
+  match_sims <- unique(ice_data[ !fixed_ind, c("scenario", "GCM")])
+} else {
+  match_sims <- unique(ice_data[ , c("scenario", "GCM")])
+}
+
+climate_data_test <- apply(match_sims, 1, function(x) { # as in match_gcms()
+
+  # For each row in forcings list, get climate timeseries
+  climate_data[ climate_data$GCM == x[ "GCM" ]
+                & climate_data$scenario == x[ "scenario"], ]
+})
+
+# Ugh: convert list to numeric matrix...
+tmp <- matrix(0.0, nrow = dim(match_sims)[1], ncol = dim(climate_data)[2] - 2)
+for ( cc in 1:length(climate_data_test)) {
+  tmp[ cc, ] <- as.numeric(unlist(climate_data_test[[cc]][, 3:dim(climate_data)[2]]))
+}
+colnames(tmp) <- colnames(climate_data[ , 3:dim(climate_data)[2]])
+
+# Overwrite old climate_data with selected this subset and scenario/GCM columns
+climate_data <- cbind(match_sims, tmp)
+
+cat(paste("\nUsing these",dim(match_sims)[1],"full forcings:\n"),
+    file = logfile_build, append = TRUE)
+ms <- match_sims[ sort(match_sims[,"scenario"], index.return = TRUE)$ix, ]
+for( mm in 1:dim(ms)[1]) {
+  cat( unlist(ms[mm, c("scenario", "GCM")]), "\n", file = logfile_build, append = TRUE)
+}
+
+
+# Cross-check number of timeseries kept
+cat(paste("\nKeeping climate timeseries (should match number of forcings above):",
+          dim(climate_data)[1], "\n"), file = logfile_build, append = TRUE)
 
 # Check some simulations found!
 stopifnot(N_sims > 0)
@@ -1366,6 +1474,11 @@ if (impute_sims) {
 
 }
 
+# Testing
+#save.image(file="~/PROTECT/emulandice2/test.RData")
+#stopifnot( read_sims_only == FALSE )
+
+
 # ________________----
 #' # Build emulator
 # BUILD EMULATOR  ------------------------------------------------------------
@@ -1672,7 +1785,6 @@ if ( ! is.na(target_size) && dim(ice_data)[1] > target_size ) {
 # SAVE EMULATOR BUILT FROM WHOLE ENSEMBLE
 # and the rest of the workspace, at least for now
 RData_file <- paste0(rdatadir, out_name, "_EMULATOR.RData")
-#save.image( file = RData_file )
 
 # Bit of duplication or unused
 to_save <- c("climate_data", # CLIMATE MODEL SIMULATION DATA
@@ -1703,6 +1815,11 @@ to_save <- c("climate_data", # CLIMATE MODEL SIMULATION DATA
              "sle_lim", "sle_inc", "ylim_obs", # Plotting ranges and increments (inc not used currently)
              "AR6_rgb", "AR6_rgb_light", "AR6_rgb_med" # Plotting colours
 )
+
+# Add extra bits for particular ice sources
+if ( i_s == "GIS" && final_year > 2100) {
+  to_save <- c(to_save, "climate_data_fixed") # Climate forcings fixed post-2100
+}
 
 if (i_s == "GLA") to_save <- c(to_save, "glacier_cap") # Glacier region maximum contributions
 

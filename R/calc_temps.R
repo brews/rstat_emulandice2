@@ -11,7 +11,7 @@
 calc_temps <- function(climate_dataset, mean_impute = FALSE) {
 
   cat("\n_____________________________________\n",file = logfile_build, append = TRUE)
-  cat( "calc_temps: calculating temperature change(s) for all forcings in dataset\n", file = logfile_build, append = TRUE )
+  cat( "calc_temps: calculating temperature change(s) for all forcings in dataset\n\n", file = logfile_build, append = TRUE )
   if (mean_impute) cat( "Imputing missing GCMs with mean of others for SSP\n\n",
                         file = logfile_build, append = TRUE )
 

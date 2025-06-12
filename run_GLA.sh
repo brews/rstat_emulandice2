@@ -63,11 +63,11 @@ do
 
   echo "GSAT file:" $gsat_file
 
-  ./emulandice_steer.sh GLA RGI"$region" ./data-raw/GLA_RGI"$region"_"$model_list"_"$covar"_EMULATOR.RData "$gsat_dir"/"$gsat_file" $ssp ./out/GLA_RGI"$region"_"$ssp"_"$final_year"/ 2024 GLA_RGI"$region"_"$ssp"_"$final_year"
+  #./emulandice_steer.sh GLA RGI"$region" ./data-raw/GLA_RGI"$region"_"$model_list"_"$covar"_EMULATOR.RData "$gsat_dir"/"$gsat_file" $ssp ./out/GLA_RGI"$region"_"$ssp"_"$final_year"/ 2024 GLA_RGI"$region"_"$ssp"_"$final_year"
 
   done
 done
 
 # Won't move if predictions already exist
-mkdir $outdir
-mv "$emulandice_dir"/out/GLA* "$emulandice_dir"/data-raw/GLA*_EMULATOR.RData $outdir
+#mkdir $outdir
+#mv "$emulandice_dir"/out/GLA* "$emulandice_dir"/data-raw/GLA*_EMULATOR.RData $outdir

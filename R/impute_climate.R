@@ -18,34 +18,34 @@ impute_climate <- function(climate_dataset, construct_fixed = FALSE) {
   cat(paste("impute_climate: fill missing 2100 and 2300\n\n"),
       file = logfile_build, append = TRUE)
 
-  # Impute two common missing cases that mean a simulation would be dropped unnecssarily
+  # Impute two common missing cases that mean a simulation would be dropped unnecessarily
 
   # GCM only reached 2099: impute 2100 with this value
   miss_ind <- is.na(climate_dataset$y2100) & !is.na(climate_dataset$y2099)
   if (length(miss_ind[miss_ind]) > 0) {
-    cat(sprintf("Imputing %i GCM simulations by setting 2100 to 2099 value:\n", length(miss_ind[miss_ind])),
+    cat(sprintf("Imputing %i GCM simulations in data file by setting 2100 to 2099 value:\n", length(miss_ind[miss_ind])),
         file = logfile_build, append = TRUE)
     cat(paste(climate_dataset[ miss_ind, c("scenario")], climate_dataset[ miss_ind, c("GCM")], "\n"), "\n",
         file = logfile_build, append = TRUE)
     climate_dataset[ miss_ind, "y2100"] <- climate_dataset[ miss_ind, "y2099"]
   }
 
-  # Repeat for 2299/2300
+  # Same thing but for 2299/2300
   miss_ind <- is.na(climate_dataset$y2300) & !is.na(climate_dataset$y2299)
   if (length(miss_ind[miss_ind]) > 0) {
-    cat(sprintf("Imputing %i GCM simulations by setting 2300 to 2299 value:\n", length(miss_ind[miss_ind])),
+    cat(sprintf("Imputing %i GCM simulations in data file by setting 2300 to 2299 value:\n", length(miss_ind[miss_ind])),
         file = logfile_build, append = TRUE)
     cat(paste(climate_dataset[ miss_ind, c("scenario")], climate_dataset[ miss_ind, c("GCM")], "\n"), "\n",
         file = logfile_build, append = TRUE)
     climate_dataset[ miss_ind, "y2300"] <- climate_dataset[ miss_ind, "y2299"]
   }
 
-
+  # GREENLAND ONLY (due to lack of forcings):
   # Construct whole duplicate array of forcings with fixed climate from 2100
   # Not very efficient, but very many are used in ensemble and saves index errors too
   if (construct_fixed) {
 
-    cat(paste("Reconstructing fixed climates from 2100\n"),
+    cat(paste("Reconstructing fixed climates from 2100 (repeat 2091-2100 decade)\n"),
         file = logfile_build, append = TRUE)
 
     # Index for each decade after fixed date
