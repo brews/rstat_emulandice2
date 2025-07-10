@@ -43,7 +43,7 @@ reorder_rows <- function(X, frontLoad = FALSE) {
   n <- nrow(X)
   fac <- sapply(X, is.factor)
   if (!any(fac)) {
-    warning("No factors, returning random permutation")
+    cat("\nreorder_rows: No factors, so returning random permutation instead\n", file = logfile_build, append = TRUE)
     return(sample.int(n, n))
   }
 

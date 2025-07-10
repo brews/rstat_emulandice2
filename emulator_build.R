@@ -224,7 +224,7 @@ if (i_s == "GLA") {
   # All models (do not change!)
   model_list_full <- c( "GloGEM", "OGGM", "GO" )
 
-  # Pick models to use
+  # Pick models, or set to model_list_full to use all
   model_list <- model_list_full
 
   # Fraction of glaciers that must have completed (guidance from Fabien Maussion)
@@ -581,11 +581,27 @@ if (i_s == "GLA") {
   ice_cont_list <- ice_cont_list[-1]
   ice_cont_list <- unique( ice_cont_list )
 
+  # Factors
+  ice_factor_list <- NA
+
   # Ensemble is for any setup differences, e.g.:
   # For OGGM, forcing uses reanalysis 2000-2020 and parameter uses GM
-  # For GloGEM, forcing parameters are regional means over glaciers but parameter ensemble has same value everywhere
-  if (length(model_list) > 1) { ice_factor_list <- "model"
-  } else ice_factor_list <- NA
+  # For GloGEM, forcing parameters are regional means over glaciers but
+  # parameter ensemble has same value everywhere
+
+  # If using both ensembles xxx check if this should be 2150 if/when imputing??
+  # could just check dataset for ensemble == forcing xxx
+
+  if (final_year <= 2100) ice_factor_list <- c(ice_factor_list, "ensemble")
+
+  # Multiple models
+  if (length(model_list) > 1) ice_factor_list <- c(ice_factor_list, "model")
+
+  # Drop initial NA if added any
+  if ( length(ice_factor_list > 1) ) ice_factor_list <- ice_factor_list[-1]
+
+#  if (length(model_list) > 1) { ice_factor_list <- "model"
+#  } else ice_factor_list <- NA
 
 }
 
@@ -1387,7 +1403,7 @@ scenario_list <- scenario_list[ scenario_list %in% unique(ice_data[,"scenario"])
 #' # Plot simulations
 # Plot: sims -----------------------------------------------------------------------
 
-cat("\nPlot simulator projections:\n", file = logfile_build, append = TRUE)
+cat("\nPlot simulator projections\n", file = logfile_build, append = TRUE)
 
 # Plot simulations (some with observations)
 # Can repeat from main.R to tweak or add model discrepancy to history matching window
@@ -1406,7 +1422,7 @@ if (plot_level > 0) {
 if (impute_sims) {
 
   # Impute data (take from end of calibration period ta avoid calibrating imputed)
-  cat( paste0("Impute missing data with SVD\n"),
+  cat( paste0("\nImpute missing data with SVD\n"),
        file = logfile_build, append = TRUE)
 
   #ssp <- "SSP585"
@@ -1474,7 +1490,7 @@ if (impute_sims) {
 
 }
 
-# Testing
+# Testing/sims only
 #save.image(file="~/PROTECT/emulandice2/test.RData")
 #stopifnot( read_sims_only == FALSE )
 
