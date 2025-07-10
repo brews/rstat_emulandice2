@@ -126,7 +126,8 @@ if (i_s == "GLA") {
 }
 
 # Set limit on data size for training GP
-target_size <- 1000
+# Uses minimum of 70% dataset and this for validation part
+target_size <- 1000L
 
 # Long names for outputs
 if (i_s == "GIS") ice_name <- "Greenland"
@@ -242,30 +243,54 @@ stopifnot( length( setdiff(model_list, model_list_full )) == 0 )
 
 # Emulator choices ------------------------------------------------------------------------
 
+# Stationary (RobustGaSP) or deep Gaussian Process emulator
+emulator_type <- "laGP"
+stopifnot(emulator_type %in% c("statGP", "laGP", "deepgp"))
+
+N_mcmc <- NA
+if (emulator_type == "deepgp") N_mcmc <- 100L
+
 #' ## Set emulator covariance function
 # Choose emulator covariance function here so can put in output name for now
 
-# Currently can choose AR6 settings (mostly linear), matern_5_2, matern_3_2,
-# or pow_exp (power-exponential with alpha = 0.1, 1.0, 1.9, 2.0)
+if (emulator_type == "statGP") {
 
-# XXX Specify by ice sheet sector later if using
+  # Currently can choose AR6 settings (mostly linear), matern_5_2, matern_3_2,
+  # or pow_exp (power-exponential with alpha = 0.1, 1.0, 1.9, 2.0)
 
-if ( i_s == "AIS") emulator_covar <- "pow_exp_10"
+  # XXX Specify by ice sheet sector later if using
 
-if ( i_s == "GIS") emulator_covar <- "pow_exp_01"
+  if ( i_s == "AIS") emulator_covar <- "pow_exp_10"
 
-if ( i_s == "GLA") {
+  if ( i_s == "GIS") emulator_covar <- "pow_exp_01"
 
-  # Default: squared exponential (Gaussian: smooth)
-  emulator_covar <- "pow_exp_20"
+  if ( i_s == "GLA") {
 
-  # 3rd Jan 2024: Make some large regions more linear if still over-fitting
-  if (reg_num %in% c(1, 4, 5, 7, 19)) emulator_covar <- "pow_exp_01"
+    # Default: squared exponential (Gaussian: smooth)
+    emulator_covar <- "pow_exp_20"
+
+    # 3rd Jan 2024: Make some large regions more linear if still over-fitting
+    if (reg_num %in% c(1, 4, 5, 7, 19)) emulator_covar <- "pow_exp_01"
+
+  }
+  stopifnot(emulator_covar %in% c("matern_5_2", "matern_3_2",
+                                  "pow_exp_01", "pow_exp_10",
+                                  "pow_exp_19", "pow_exp_20"))
+}
+
+if (emulator_type == "deepgp") {
+
+  # Squared exponential ("gauss" in RobustGaSP) or Matern
+  # Matern smoothness is v=2.5 by default in deepgp, i.e. matern_5_2
+  emulator_covar <- "matern" # exp2"
+  stopifnot(emulator_covar %in% c("exp2", "matern"))
 
 }
-stopifnot(emulator_covar %in% c("matern_5_2", "matern_3_2",
-                                "pow_exp_01", "pow_exp_10",
-                                "pow_exp_19", "pow_exp_20"))
+
+if (emulator_type == "laGP") {
+  emulator_covar <- "exp2" # Just used for naming etc for now; Gaussian is default in laGP
+  stopifnot(emulator_covar == "exp2")
+}
 
 #' ## Open output file
 
@@ -285,7 +310,9 @@ cat(paste( "MODELS:", paste(model_list, collapse = ", "), "\n"), file = logfile_
 cat(paste("\nDate range of simulations to be used:",
           years_sim[1],"-", years_sim[length(years_sim)], "\n"),
     file = logfile_build, append = TRUE)
-cat(paste("\nEmulator covariance:",emulator_covar,"\n"), file = logfile_build, append = TRUE)
+cat(paste("\nEmulator type:", emulator_type, "\n"), file = logfile_build, append = TRUE)
+cat(paste("\nEmulator covariance:", emulator_covar, "\n"), file = logfile_build, append = TRUE)
+cat(paste("\nN MCMC:", N_mcmc, "\n"), file = logfile_build, append = TRUE)
 
 #' ## Glacier maximum contributions
 # Get glacier cap --------
@@ -569,9 +596,9 @@ if (i_s == "GLA") {
                                      "temp_melt", "temp_bias", "glen_a")
 
   # GO
-  ice_cont_list_model[["OGGM"]] <- c("prec_corr_factor", "ice_albedo",
-                                     "temp_sens", "psi_constant","trans",
-                                     "t_tip", "t_phase")
+  ice_cont_list_model[["GO"]] <- c("prec_corr_factor", "ice_albedo",
+                                   "temp_sens", "psi_constant","trans",
+                                   "t_tip", "t_phase")
 
   # Combine
   ice_cont_list <- NA
@@ -628,33 +655,40 @@ if (include_factors) {
 
 #' ## Emulator details
 
-# Could set to FALSE if want to check for inert inputs
-lower_bound <- TRUE # RobustGaSP default = TRUE
-alpha = NA
+if (emulator_type == "statGP") {
 
-# Matern
-if (emulator_covar %in% c("matern_5_2", "matern_3_2")) kernel <- emulator_covar
+  # Could set to FALSE if want to check for inert inputs
+  lower_bound <- TRUE # RobustGaSP default = TRUE
+  alpha = NA
 
-# Power exponential
-if (emulator_covar == "pow_exp_01") {
-  kernel <- "pow_exp"
-  alpha = 0.1
-}
-if (emulator_covar == "pow_exp_10") {
-  kernel <- "pow_exp"
-  alpha = 1.0
-}
-if (emulator_covar == "pow_exp_19") {
-  kernel <- "pow_exp"
-  alpha = 1.9 # default for pow_exp
-}
-if (emulator_covar == "pow_exp_20") {
-  kernel <- "pow_exp"
-  alpha = 2.0
+  # Matern
+  if (emulator_covar %in% c("matern_5_2", "matern_3_2")) kernel <- emulator_covar
+
+  # Power exponential
+  if (emulator_covar == "pow_exp_01") {
+    kernel <- "pow_exp"
+    alpha = 0.1
+  }
+  if (emulator_covar == "pow_exp_10") {
+    kernel <- "pow_exp"
+    alpha = 1.0
+  }
+  if (emulator_covar == "pow_exp_19") {
+    kernel <- "pow_exp"
+    alpha = 1.9 # default for pow_exp
+  }
+  if (emulator_covar == "pow_exp_20") {
+    kernel <- "pow_exp"
+    alpha = 2.0
+  }
+
+  stopifnot(kernel %in% c("pow_exp", "matern_5_2", "matern_3_2"))
+
 }
 
-stopifnot(kernel %in% c("pow_exp", "matern_5_2", "matern_3_2"))
-
+if (emulator_type == "deepgp") {
+  # Placeholder if I want to set matern smoothness later
+}
 
 # Plot: choices ------------------------------------------------------------
 #' ## Plot choices
@@ -1516,14 +1550,16 @@ if (impute_sims) {
 # Samples a balance of factor levels, not just random
 if ( ! is.na(target_size) && dim(ice_data)[1] > target_size ) {
 
+  # xxx round this!
   target_size_min <- min(0.7 * dim(ice_data)[1], target_size)
   if (deliverable_test) target_size_min <- target_size
 
-  cat( paste("Selecting",target_size_min,"simulations for training\n"),
+  cat( paste("\nSelecting",target_size_min,"simulations for training\n"),
        file = logfile_build, append = TRUE)
 
-  # Start with original dataset inputs
-  # (i.e. factors as levels, not dummy; includes GCM which is good for non-linearity with GSAT)
+  # Use original dataset inputs
+  # Yes, really! Not emulator inputs, because includes e.g. GCM, SSP etc
+  # which is good for sampling GSAT and noisy ice responses to GCMs for given GSAT
   Xraw <- ice_data[, ice_param_list_full]
 
   # Make into nice data frame with factors
@@ -1590,6 +1626,8 @@ emu_mv <- emulandice2::make_emu( as.matrix(X), as.matrix(Y) ) #) )
 # Main effects (i.e. one-at-a-time design for sensitivity analysis)
 design_sa <- emulandice2::load_design_to_pred("main_effects", 100L)
 
+# save.image(file="~/PROTECT/emulandice2/beforepred.RData")
+
 # Predict: overwrite object
 myem <- list()
 for (input in names( design_sa )) {
@@ -1605,6 +1643,8 @@ for (input in names( design_sa )) {
 
   myem[[input]] <- emulandice2::emulator_predict( design_sa_scaled )
 }
+
+# save.image(file="~/PROTECT/emulandice2/MEFF.RData")
 
 #' ## Uniform temperature prior
 
@@ -1753,6 +1793,8 @@ if ( ! is.na(target_size) && dim(ice_data)[1] > target_size ) {
   cat(sprintf("\nNumber within emulator 95%% intervals: %.2f%%\n",
               frac_right*100.0), file = logfile_build, append = TRUE)
 
+  # Plot: train and test --------
+  # Plot train and test results
   pdf( file = paste0( outdir, out_name, "_VALIDATION_", yy, ".pdf"),
        width = 5, height = 5)
 
@@ -1814,14 +1856,14 @@ to_save <- c("climate_data", # CLIMATE MODEL SIMULATION DATA
              "scen_name", # Nicely formatted lookup name list of all scenarios looked for in datas
              "years_sim", # List of simulated years
              "ice_design", # Simulation ensemble design, i.e. input values
-             "ice_param_list_full", # Lists of simulated inputs
+             "ice_param_list_full", # Lists of all simulated inputs
              "ice_cont_list", "ice_factor_list", "ice_all_list", # Lists of emulated inputs: continuous, factors, all
              "ice_dummy_list", "ice_factor_values", # Dummy column names and values for factor inputs
              "N_temp_yrs", # GSAT mean years; used in priors
              "temps", "temps_baseline", "temps_list", "temps_list_names", # GSAT means and names used
              "input_cont_list", # List of emulated continuous inputs, i.e. c(temps_list_names, ice_cont_list)
              "emu_mv", # EMULATOR! function object
-             "lower_bound", "kernel", "alpha", "include_factors", # Used in emulator function object
+             "include_factors", # Are there any factors
              "years_em", "N_ts", # List and number of emulated years
              "inputs_centre", "inputs_scale", # Rescaling values for transforming params before/after emulation
              "first_year", "final_year", "cal_start", "cal_end", # Dates of data and calibration period
@@ -1838,6 +1880,9 @@ if ( i_s == "GIS" && final_year > 2100) {
 }
 
 if (i_s == "GLA") to_save <- c(to_save, "glacier_cap") # Glacier region maximum contributions
+
+# RobustGaSP settings (no need to save emulator_covar as it is in RData name)
+if (emulator_type == "statGP") to_save <- c(to_save, "lower_bound", "kernel", "alpha")
 
 save(list = to_save, file = RData_file)
 

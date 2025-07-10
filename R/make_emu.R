@@ -54,7 +54,7 @@ make_emu <- function(designX, responseF, r = NULL, thresh = 0.999) {
 
   ## build emulators, hide rgasp output
 
-  sink(file = paste0(outdir,out_name,"_rgasp.log"))
+  sink(file = paste0(outdir,out_name,"_", emulator_type, ".log"))
 
   # Get all inputs
   trendX <- designX
@@ -71,11 +71,23 @@ make_emu <- function(designX, responseF, r = NULL, thresh = 0.999) {
     cat(paste(c(colnames(trendX), "\n"), collapse = " "), file = logfile_build, append = TRUE)
   }
 
+  # Build emulator for each principal component
   EMU <- lapply(1L:r, function(j) {
 
-    RobustGaSP::rgasp(design = designX, response = U[, j], trend = cbind(1, trendX),
-                      nugget.est = TRUE , lower_bound = lower_bound,
-                      kernel_type = kernel, alpha = rep(alpha, dim(as.matrix(designX))[2]))
+    if (emulator_type == "statGP") {
+      RobustGaSP::rgasp(design = designX, response = U[, j], trend = cbind(1, trendX),
+                        nugget.est = TRUE , lower_bound = lower_bound,
+                        kernel_type = kernel, alpha = rep(alpha, dim(as.matrix(designX))[2]))
+    }
+    if (emulator_type == "deepgp") {
+      deepgp::fit_one_layer( designX, U[, j], cov = emulator_covar, nmcmc = N_mcmc )
+    }
+
+    # Just return the PC for next step
+    if (emulator_type == "laGP") {
+      U[, j]
+    }
+
   })
 
   sink()
@@ -86,16 +98,34 @@ make_emu <- function(designX, responseF, r = NULL, thresh = 0.999) {
 
     trendXout <- designXout
 
-    # Drop any factors from trend
+    # Drop any factors from trend used in RobustGaSP
     if (include_factors) {
       tt <- which( input_cont_list %in% colnames(ice_design), arr.ind = TRUE )
       trendXout <- trendXout[ , tt, drop = FALSE]
     }
 
+    # Predict for set of new design points using each PC emulator
     lapply(EMU, function(emu) {
-      RobustGaSP::predict(emu, testing_input = designXout,
-                          testing_trend = cbind(1, trendXout))[c("mean", "sd")]
+
+      if (emulator_type == "statGP") {
+        RobustGaSP::predict(emu, testing_input = designXout,
+                            testing_trend = cbind(1, trendXout))[c("mean", "sd")]
+      }
+      if (emulator_type == "deepgp") {
+        predict(emu, designXout)[c("mean", "s2")]
+      }
+
+      # LaGP builds and predicts at the same time
+      # So here EMU is our response PC U[, j]
+      if (emulator_type == "laGP") {
+        laGP::aGP(designX, emu, designXout, method="alc", g=0.1)[c("mean", "var", "d", "g")] # estimate nugget
+
+      }
+
     })
+
+
+
   }
 
   ## return a function
@@ -111,33 +141,47 @@ make_emu <- function(designX, responseF, r = NULL, thresh = 0.999) {
     m_out <- nrow(designXout)
     pplist <- pred_EMU(designXout) # r-list
 
-    ## compute the mean
-
+    ## compute the time series (n years) of emulated mean values
+    # for each of the m_out simulations
+    # from the r individual PC means
     mu <- sapply(pplist, "[[", "mean") # m_out x r
     dim(mu) <- c(m_out, r)
     mx <- sweep(mu %*% Vt, 2L, cc, "+") # m_out x n
+
+    # Can choose to return only the mean
     if (type == "mean")
       return(list(mean = mx))
 
-    ## compute the sd
+    # Output estimated length scales and nuggets for testing
+    darg <- sapply(pplist, "[[", "d") # m_out x r
+    print(darg)
+    garg <- sapply(pplist, "[[", "g") # m_out x r
+    print(garg)
 
-    sdu <- sapply(pplist, "[[", "sd") # m_out x r
+    ## compute the sd similarly
+    if (emulator_type == "statGP") sdu <- sapply(pplist, "[[", "sd") # m_out x r
+    # deepgp and laGP return sd^2 not sd
+    if (emulator_type == "deepgp") sdu <- sqrt(sapply(pplist, "[[", "s2"))
+    if (emulator_type == "laGP") sdu <- sqrt(sapply(pplist, "[[", "var"))
+
     dim(sdu) <- c(m_out, r)
-
     sdx <- lapply(1L:m_out, function(i) {
       sqrt(colSums((sdu[i, ] * Vt)^2)) # n vector
     })
     sdx <- do.call("rbind", sdx) #  m_out x n
+
+    # Can choose to return only the s.d.
     if (type == "sd") return(list(mean = mx, sd = sdx))
 
-    ## compute the variance; TLE changed to return sd too
-
+    ## compute the variance - i.e. covariances between the n years
     Sx <- lapply(1L:m_out, function(i) {
       as.vector(crossprod(sdu[i, ] * Vt)) # n*n vector
     })
     Sx <- do.call("cbind", Sx) # n*n x m_out
     dim(Sx) <- c(n, n, m_out)
-    Sx <- aperm(Sx, c(3, 1, 2)) # I wonder who wrote aperm :)
+    Sx <- aperm(Sx, c(3, 1, 2))
+
+    # Default is to return mean, sd and var
     return(list(mean = mx, sd = sdx, var = Sx))
   }
 

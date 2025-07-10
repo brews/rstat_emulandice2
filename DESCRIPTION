@@ -13,5 +13,7 @@ Imports:
     methods,
     mvtnorm,
     RobustGaSP,
+    deepgp,
+    laGP,
     ncdf4
 RoxygenNote: 7.2.3
