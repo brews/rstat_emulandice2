@@ -47,13 +47,13 @@ do
   fi
 
   # START PREDICTION
-  echo
-  echo "run GLA: predict for region RGI: $region"
+ # echo
+  #echo "run GLA: predict for region RGI: $region"
 
   for ssp in "ssp119" "ssp126" "ssp245" "ssp370" "ssp585" "ssp534-over"
   do
 
-  echo "Scenario:" $ssp
+ # echo "Scenario:" $ssp
 
   # IPCC AR6: FaIR 2LM
   gsat_file=twolayer_SSPs.h5
@@ -61,7 +61,7 @@ do
   # Victor test files: FaIR 3LM
   # gsat_file="$ssp".temperature.fair.temperature_climate.nc
 
-  echo "GSAT file:" $gsat_file
+  #echo "GSAT file:" $gsat_file
 
   #./emulandice_steer.sh GLA RGI"$region" ./data-raw/GLA_RGI"$region"_"$model_list"_"$covar"_EMULATOR.RData "$gsat_dir"/"$gsat_file" $ssp ./out/GLA_RGI"$region"_"$ssp"_"$final_year"/ 2024 GLA_RGI"$region"_"$ssp"_"$final_year"
 

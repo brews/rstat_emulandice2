@@ -34,7 +34,7 @@ load_design_to_pred <- function(design_name, N_samp = NA) {
   } else logfile_design <- logfile_results
 
   cat("\n_________________________________\n",file = logfile_design, append = TRUE)
-  cat(paste("load_design_pred:", design_name, "\n\n"), file = logfile_design, append = TRUE)
+  cat(paste("load_design_to_pred:", design_name, "\n\n"), file = logfile_design, append = TRUE)
 
   # One matrix for each scenario (uniform GSAT and AR6 prior)
   # or each input (main effects)
@@ -273,7 +273,7 @@ load_design_to_pred <- function(design_name, N_samp = NA) {
         design_prior_gsat[,cc] <- runif( N_samp, min = min_temps,
                                          max = max_temps)
 
-        cat(sprintf( "%s %s: [%.1f, %.1f] degC\n", scen, temps_list_names[cc], min_temps, max_temps),
+        cat(sprintf( "%s %s: [%.2f, %.2f] degC\n", scen, temps_list_names[cc], min_temps, max_temps),
             file = logfile_design, append = TRUE)
 
       }
@@ -556,7 +556,7 @@ load_design_to_pred <- function(design_name, N_samp = NA) {
 
   # Return design  ------------------------------------------------------------------------
 
-  cat(paste("\nload_design_pred: created prior designs for",paste(names(design_prior), collapse = " "),"\n"), file = logfile_design, append = TRUE)
+  cat(paste("\nload_design_to_pred: created prior designs for",paste(names(design_prior), collapse = " "),"\n"), file = logfile_design, append = TRUE)
 
   return(design_prior)
 

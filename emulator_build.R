@@ -287,9 +287,17 @@ if (emulator_type == "deepgp") {
 
 }
 
+# Set here because of conditionals in make_emu.R
+laGP_scaling <- FALSE
+
 if (emulator_type == "laGP") {
+
   emulator_covar <- "exp2" # Just used for naming etc for now; Gaussian is default in laGP
   stopifnot(emulator_covar == "exp2")
+
+  laGP_method <- "alcray" # alc, alcray (faster but worse)
+  laGP_nugget_prior <- 0.1 # prior value for nuggets
+
 }
 
 #' ## Open output file
@@ -310,9 +318,14 @@ cat(paste( "MODELS:", paste(model_list, collapse = ", "), "\n"), file = logfile_
 cat(paste("\nDate range of simulations to be used:",
           years_sim[1],"-", years_sim[length(years_sim)], "\n"),
     file = logfile_build, append = TRUE)
-cat(paste("\nEmulator type:", emulator_type, "\n"), file = logfile_build, append = TRUE)
-cat(paste("\nEmulator covariance:", emulator_covar, "\n"), file = logfile_build, append = TRUE)
-cat(paste("\nN MCMC:", N_mcmc, "\n"), file = logfile_build, append = TRUE)
+cat(paste("\nEmulator type:", emulator_type), file = logfile_build, append = TRUE)
+cat(paste("\nEmulator covariance:", emulator_covar), file = logfile_build, append = TRUE)
+if (emulator_type == "deepgp") cat(paste("\nN_MCMC:", N_mcmc, "\n"), file = logfile_build, append = TRUE)
+if (emulator_type == "laGP") {
+  cat("\nlaGP scaling: ", laGP_scaling, "\n", file = logfile_build, append = TRUE)
+  cat("laGP method: ", laGP_method, "\n", file = logfile_build, append = TRUE)
+  cat("laGP nugget prior: ", laGP_nugget_prior, "\n", file = logfile_build, append = TRUE)
+}
 
 #' ## Glacier maximum contributions
 # Get glacier cap --------
@@ -627,8 +640,8 @@ if (i_s == "GLA") {
   # Drop initial NA if added any
   if ( length(ice_factor_list > 1) ) ice_factor_list <- ice_factor_list[-1]
 
-#  if (length(model_list) > 1) { ice_factor_list <- "model"
-#  } else ice_factor_list <- NA
+  #  if (length(model_list) > 1) { ice_factor_list <- "model"
+  #  } else ice_factor_list <- NA
 
 }
 
@@ -1525,7 +1538,7 @@ if (impute_sims) {
 }
 
 # Testing/sims only
-#save.image(file="~/PROTECT/emulandice2/test.RData")
+save.image(file="~/PROTECT/emulandice2/sims.RData")
 #stopifnot( read_sims_only == FALSE )
 
 
@@ -1550,8 +1563,11 @@ if (impute_sims) {
 # Samples a balance of factor levels, not just random
 if ( ! is.na(target_size) && dim(ice_data)[1] > target_size ) {
 
-  # xxx round this!
-  target_size_min <- min(0.7 * dim(ice_data)[1], target_size)
+  if ( ! is.na(target_size) ) cat( paste("\nSet",target_size,"max sample size for training\n"),
+                                   file = logfile_build, append = TRUE)
+
+  # Number of simulations to train with: 70% of dataset, or a smaller subsample
+  target_size_min <- round(min(0.7 * dim(ice_data)[1], target_size))
   if (deliverable_test) target_size_min <- target_size
 
   cat( paste("\nSelecting",target_size_min,"simulations for training\n"),
@@ -1615,6 +1631,7 @@ print("Building emulator...")
 #show(system.time( try(
 emu_mv <- emulandice2::make_emu( as.matrix(X), as.matrix(Y) ) #) )
 
+save.image(file="~/PROTECT/emulandice2/make_emu.RData")
 
 # ________________----
 # TEST ------------------------------------------------------------
@@ -1626,7 +1643,7 @@ emu_mv <- emulandice2::make_emu( as.matrix(X), as.matrix(Y) ) #) )
 # Main effects (i.e. one-at-a-time design for sensitivity analysis)
 design_sa <- emulandice2::load_design_to_pred("main_effects", 100L)
 
-# save.image(file="~/PROTECT/emulandice2/beforepred.RData")
+cat(paste("\nPredict for main effect plots:\n"), file = logfile_build, append = TRUE)
 
 # Predict: overwrite object
 myem <- list()
@@ -1644,7 +1661,7 @@ for (input in names( design_sa )) {
   myem[[input]] <- emulandice2::emulator_predict( design_sa_scaled )
 }
 
-# save.image(file="~/PROTECT/emulandice2/MEFF.RData")
+save.image(file="~/PROTECT/emulandice2/MEFF.RData")
 
 #' ## Uniform temperature prior
 
@@ -1654,6 +1671,8 @@ for (input in names( design_sa )) {
 # a better comparison than using FaIR projected distributions for each SSP
 
 design_pred <- emulandice2::load_design_to_pred("unif_temps", N_unif)
+
+cat(paste("\nPredict for uniform temp designs:\n"), file = logfile_build, append = TRUE)
 
 for (scen in scenario_list) {
 
@@ -1666,6 +1685,9 @@ for (scen in scenario_list) {
   design_pred_scaled[ , input_cont_list] <- design_pred_scaled_cont
   myem[[scen]] <- emulandice2::emulator_predict( design_pred_scaled )
 }
+
+save.image(file="~/PROTECT/emulandice2/unif_temps.RData")
+
 
 # Sample emu uncertainty ----------------------------------------------------------------------
 projections <- list()
@@ -1767,6 +1789,7 @@ if ( ! is.na(target_size) && dim(ice_data)[1] > target_size ) {
   test_data <- ice_data[ test_set, ]
 
   # Predict for all the original design points not in the training set
+  # Note inputs are already scaled
   emu_test <- emulandice2::emulator_predict( ice_design_scaled[ test_set, ] )
 
   # Use final year requested for LOO validation for now
@@ -1787,11 +1810,24 @@ if ( ! is.na(target_size) && dim(ice_data)[1] > target_size ) {
   ww <- wrong[[yind]]
 
   frac_right <- 1 - ( length(which(wrong[[yind]][test_set] == TRUE)) / length(test_set) )
+  test_err <- test_mean - test_data[ , yind]
+  test_std_err <- test_err / test_sd
 
   cat(sprintf("\nTRAIN AND TEST VALIDATION (N = %i):", length(test_set)),
       file = logfile_build, append = TRUE)
   cat(sprintf("\nNumber within emulator 95%% intervals: %.2f%%\n",
               frac_right*100.0), file = logfile_build, append = TRUE)
+  cat(sprintf("Mean of absolute errors (cm): %.1f\n",
+              mean(abs(test_err))), file = logfile_build, append = TRUE)
+  cat(sprintf("Range of absolute errors (cm): [%.1f, %.1f]\n",
+              min(test_err[ !is.na(test_err)]), max(test_err)),
+      file = logfile_build, append = TRUE)
+  cat(sprintf("Mean of standardised errors: %.1f\n",
+              mean(test_std_err)), file = logfile_build, append = TRUE)
+  cat(sprintf("Range of standardised errors: [%.1f, %.1f]\n",
+              min(test_std_err), max(test_std_err)),
+      file = logfile_build, append = TRUE)
+
 
   # Plot: train and test --------
   # Plot train and test results
@@ -1816,7 +1852,7 @@ if ( ! is.na(target_size) && dim(ice_data)[1] > target_size ) {
           test_data[ , yind], test_mean + 2*test_sd,
           code = 3, angle = 90, lwd = 0.4, length = 0.02 )
 
-  # Replot over in red for those that missed
+  # Replot over in red for those that missed - xxx or do together?
   points( test_data[ ww, yind], test_mean[ww],
           pch = 20, col = "red")
   arrows( test_data[ ww, yind],

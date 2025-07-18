@@ -230,6 +230,7 @@ for (scen in fixed_temp_list) {
   cat(paste("Fixed climate:",scen,"\n"), file = logfile_results, append = TRUE)
 
   # Rescale priors using same scaling factors as for simulator inputs
+  # xxx safer to put scaling in emulator_predict()
   design_fixed_scaled_cont <- scale(design_fixed[[scen]][ , input_cont_list],
                                     center = inputs_centre,
                                     scale = inputs_scale )
