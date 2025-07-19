@@ -165,8 +165,9 @@ if (i_s == "GLA") first_year <- 1980
 
 years_sim <- first_year:final_year
 
-# Timeslice frequency to predict (see below: first date is cal_start + nyr)
-nyrs <- 10 # 5 # BISICLES test xxx
+# Timeslice frequency to predict after break year
+# (see below)
+nyrs <- 10
 
 # Check reasonable choice
 stopifnot(nyrs %in% c(1, 2, 5, 10))
@@ -210,8 +211,9 @@ if (i_s == "GIS") {
   # If ElmerIce: change cal range later to 1992-2014 (if 2 yr timeslices)
 
   # Flag to require matching historical + projection retreat values in select_sims()
-  # (only CISM runs do though)
-  need_retreat_match <- TRUE
+  # for CISM runs only
+  # Since 250719, have excluded all but a few 2300 for keeping: so set to FALSE
+  need_retreat_match <- FALSE
 
   # Only CISM went beyond 2100 (at all / to any great extent)
   if ( final_year > 2100 &&
@@ -244,7 +246,7 @@ stopifnot( length( setdiff(model_list, model_list_full )) == 0 )
 # Emulator choices ------------------------------------------------------------------------
 
 # Stationary (RobustGaSP) or deep Gaussian Process emulator
-emulator_type <- "laGP"
+emulator_type <- "statGP"
 stopifnot(emulator_type %in% c("statGP", "laGP", "deepgp"))
 
 N_mcmc <- NA
@@ -326,6 +328,7 @@ if (emulator_type == "laGP") {
   cat("laGP method: ", laGP_method, "\n", file = logfile_build, append = TRUE)
   cat("laGP nugget prior: ", laGP_nugget_prior, "\n", file = logfile_build, append = TRUE)
 }
+cat("\n", file = logfile_build, append = TRUE)
 
 #' ## Glacier maximum contributions
 # Get glacier cap --------
@@ -338,7 +341,7 @@ if (i_s == "GLA") glacier_cap <- emulandice2::get_glacier_cap(reg)
 # Ice sheets: Otosaka et al. (2023) IMBIE is 1992-2020
 # Glaciers: Hugonnet et al. (2021) is 2000-2020
 if (i_s == "AIS") cal_end <- 2020
-if (i_s == "GIS") cal_end <- 2020 # 2015 # 2014 for 2100 2 yr; but 2015 for ElmerIce or 2300 (or 2020?)
+if (i_s == "GIS") cal_end <- 2021 # xxx to 2023 when imbie3
 if (i_s == "GLA") cal_end <- 2020 # because OGGM fails if too early xxx obsolete?
 
 # Start of calibration period
@@ -356,20 +359,33 @@ if (i_s == "AIS") {
 }
 
 # Greenland
-if (i_s == "GIS") cal_start = 2000 # xxx change to 1995 when decoupled baseline
+if (i_s == "GIS") {
+  if (final_year > 2100) { # CISM overlap with IMBIE3
+    cal_start = 1972 # 1971 when final IMBIE3
+  } else {
+    cal_start = 1995 # Elmer/Ice overlap with IMBIE3
+  } # xxx change to 1995 when decoupled baseline
+}
 
 # Glaciers
 if (i_s == "GLA") cal_start = 2000
 
-# Check for current data ranges - change if updating data
-stopifnot(cal_end <= 2020) # 2021 for new IMBIE; 2023 for new new IMBIE xxx
-stopifnot( cal_start >= 1992
-           || (i_s == "GLA" && cal_start >= 2000 ) )
+# Checks for current data ranges: better to check against data file! xxx
+
+# IMBIE and GLAMBIE end in 2023
+stopifnot(cal_end <= 2023)
+
+# IMBIE3 start dates
+if (i_s == "AIS") stopifnot( cal_start >= 1979 )
+if (i_s == "GIS") stopifnot( cal_start >= 1971 )
+
+# GLAMBIE start date
+if (i_s == "GLA") stopifnot( cal_start >= 2000 )
 
 # Construct emulated time series
 #proj_start <- cal_start + 1 # was nyrs
 #years_em <- seq( from = proj_start, by = nyrs, to = years_sim[length(years_sim)] )
-break_yr <- 2020
+break_yr <- 2030 # end of annual frequency for emulation
 years_em <- c( (cal_start + 1):break_yr-1, seq( from = break_yr, by = nyrs, to = years_sim[length(years_sim)] ))
 
 # BISICLES tests xxx drop a couple
@@ -1754,16 +1770,16 @@ if (do_loo_validation) {
 
     # PRINT RESULTS
     cat(paste("\nLOO VALIDATION:",yy, "\n"), file = logfile_build, append = TRUE)
-    cat(sprintf("Number within emulator 95%% intervals: %.2f%%\n",
+    cat(sprintf("Number within %i emulator 95%% intervals: %.2f%%\n", yy,
                 frac_right*100.0), file = logfile_build, append = TRUE)
-    cat(sprintf("Mean of absolute errors (cm): %.1f\n",
+    cat(sprintf("Mean of %i emulator absolute errors (cm): %.1f\n", yy,
                 mean(abs(loo_err[ N_k_index ]))), file = logfile_build, append = TRUE)
-    cat(sprintf("Range of absolute errors (cm): [%.1f, %.1f]\n",
+    cat(sprintf("Range of %i emulator absolute errors (cm): [%.1f, %.1f]\n", yy,
                 min(loo_err[ !is.na(loo_err)]), max(loo_err[ N_k_index ])),
         file = logfile_build, append = TRUE)
-    cat(sprintf("Mean of standardised errors: %.1f\n",
+    cat(sprintf("Mean of %i emulator standardised errors: %.1f\n", yy,
                 mean(loo_std_err[ N_k_index ])), file = logfile_build, append = TRUE)
-    cat(sprintf("Range of standardised errors: [%.1f, %.1f]\n",
+    cat(sprintf("Range of %i emulator standardised errors: [%.1f, %.1f]\n", yy,
                 min(loo_std_err[ N_k_index ]), max(loo_std_err[ N_k_index ])),
         file = logfile_build, append = TRUE)
 
@@ -1815,16 +1831,16 @@ if ( ! is.na(target_size) && dim(ice_data)[1] > target_size ) {
 
   cat(sprintf("\nTRAIN AND TEST VALIDATION (N = %i):", length(test_set)),
       file = logfile_build, append = TRUE)
-  cat(sprintf("\nNumber within emulator 95%% intervals: %.2f%%\n",
+  cat(sprintf("\nNumber within %i emulator 95%% intervals: %.2f%%\n", yy,
               frac_right*100.0), file = logfile_build, append = TRUE)
-  cat(sprintf("Mean of absolute errors (cm): %.1f\n",
+  cat(sprintf("Mean of %i emulator absolute errors (cm): %.1f\n", yy,
               mean(abs(test_err))), file = logfile_build, append = TRUE)
-  cat(sprintf("Range of absolute errors (cm): [%.1f, %.1f]\n",
+  cat(sprintf("Range of %i emulator absolute errors (cm): [%.1f, %.1f]\n", yy,
               min(test_err[ !is.na(test_err)]), max(test_err)),
       file = logfile_build, append = TRUE)
-  cat(sprintf("Mean of standardised errors: %.1f\n",
+  cat(sprintf("Mean of %i emulator standardised errors: %.1f\n", yy,
               mean(test_std_err)), file = logfile_build, append = TRUE)
-  cat(sprintf("Range of standardised errors: [%.1f, %.1f]\n",
+  cat(sprintf("Range of %i emulator standardised errors: [%.1f, %.1f]\n", yy,
               min(test_std_err), max(test_std_err)),
       file = logfile_build, append = TRUE)
 
@@ -1898,6 +1914,7 @@ to_save <- c("climate_data", # CLIMATE MODEL SIMULATION DATA
              "N_temp_yrs", # GSAT mean years; used in priors
              "temps", "temps_baseline", "temps_list", "temps_list_names", # GSAT means and names used
              "input_cont_list", # List of emulated continuous inputs, i.e. c(temps_list_names, ice_cont_list)
+             "emulator_type",
              "emu_mv", # EMULATOR! function object
              "include_factors", # Are there any factors
              "years_em", "N_ts", # List and number of emulated years
@@ -1918,7 +1935,13 @@ if ( i_s == "GIS" && final_year > 2100) {
 if (i_s == "GLA") to_save <- c(to_save, "glacier_cap") # Glacier region maximum contributions
 
 # RobustGaSP settings (no need to save emulator_covar as it is in RData name)
+# Not sure if these are needed, as only predict is used
 if (emulator_type == "statGP") to_save <- c(to_save, "lower_bound", "kernel", "alpha")
+
+# laGP settings
+# Need to save these because build and predict are done together
+if (emulator_type == "laGP") to_save <- c(to_save, laGP_scaling, laGP_method,
+                                          laGP_nugget_prior)
 
 save(list = to_save, file = RData_file)
 

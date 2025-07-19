@@ -234,12 +234,12 @@ make_emu <- function(designX, responseF, r = NULL, thresh = 0.999) {
           # Build and predict from local design, using scaled inputs
           lagp_pred <- laGP::aGP(designX, response, designXout, g = laGP_nugget_prior,
                                  d = list(start = 1, max = 20),
-                                 method=laGP_method)[c("mean", "var", "d", "g")]
+                                 method = laGP_method)[c("mean", "var", "d", "g")]
         } else {
 
           # Build and predict from local design, using original inputs
           lagp_pred <- laGP::aGP(designX, response, designXout, g = laGP_nugget_prior,
-                                 method=laGP_method)[c("mean", "var", "d", "g")]
+                                 method = laGP_method)[c("mean", "var", "d", "g")]
         }
 
         lagp_pred

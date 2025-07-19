@@ -32,8 +32,8 @@ load_sims <- function(variable, source = NA, region = NA) { # dataset
     if (variable == "ice") {
 
       if (source == "GIS") {
-        data_file <- paste0( inputs_preprocess, "/GIS/SLE_SIMULATIONS_GIS_p10_250112.csv") # slc not sle, new overshoot runs
-        if (deliverable_test) data_file <- paste0( inputs_preprocess, "/GIS/SLE_SIMULATIONS_GIS_p9_240210.csv") # sle
+        data_file <- paste0( inputs_preprocess, "/GIS/SLE_SIMULATIONS_GIS_m_2014_250719.csv" )
+        if (deliverable_test) data_file <- paste0( inputs_preprocess, "/GIS/SLE_SIMULATIONS_GIS_p9_240210.csv")
       }
 
       if (source == "AIS") {
