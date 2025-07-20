@@ -22,8 +22,10 @@ make_emu <- function(designX, responseF, r = NULL, thresh = 0.999) {
   #    r <- NULL
   #    thresh <- 0.99
 
-  cat("_____________________________________\n", file = logfile_build, append = TRUE)
-  cat("make_emu: building emulator...\n", file = logfile_build, append = TRUE)
+  emu_log_file <- paste0(outdir,out_name,"_", emulator_type, ".log")
+
+  cat("_____________________________________\n", file = emu_log_file, append = TRUE)
+  cat("make_emu: building emulator...\n", file = emu_log_file, append = TRUE)
 
   stopifnot(is.matrix(designX))
   m <- nrow(designX)
@@ -50,10 +52,9 @@ make_emu <- function(designX, responseF, r = NULL, thresh = 0.999) {
 
   ## write a message
 
-  cat(sprintf("make_emu: r = %i, scree = %.1f%%\n", r, 100 * scree[r]), file = logfile_build, append = TRUE)
+  cat(sprintf("make_emu: r = %i, scree = %.1f%%\n", r, 100 * scree[r]), file = emu_log_file, append = TRUE)
 
   ## build emulators, hide rgasp output
-  emu_log_file <- paste0(outdir,out_name,"_", emulator_type, ".log")
   sink(file = emu_log_file)
 
   if ( emulator_type == "statGP") {
@@ -64,20 +65,20 @@ make_emu <- function(designX, responseF, r = NULL, thresh = 0.999) {
     # Drop factors (dummy variable columns)
     if ( include_factors) {
 
-      cat("\nDropping factors from trends:\n", file = logfile_build, append = TRUE)
-      cat(paste(c(ice_dummy_list, "\n"), collapse = " "), file = logfile_build, append = TRUE)
+      cat("\nmake_emu: dropping factors from trends:\n", file = emu_log_file, append = TRUE)
+      cat(paste(c(ice_dummy_list, "\n"), collapse = " "), file = emu_log_file, append = TRUE)
 
       trendX <- trendX[ , input_cont_list]
 
-      cat("\nKeeping:\n", file = logfile_build, append = TRUE)
-      cat(paste(c(colnames(trendX), "\n"), collapse = " "), file = logfile_build, append = TRUE)
+      cat("\nmake_emu: keeping:\n", file = emu_log_file, append = TRUE)
+      cat(paste(c(colnames(trendX), "\n"), collapse = " "), file = emu_log_file, append = TRUE)
     }
   }
 
   # Emulator model for each principal component
   EMU <- lapply(1L:r, function(j) {
 
-    cat(sprintf("\nTraining emulator for PC %i\n", j), file = emu_log_file, append = TRUE)
+#    cat(sprintf("\nTraining emulator for PC %i\n", j), file = emu_log_file, append = TRUE)
 
     if (emulator_type == "statGP") {
       emu_pc <- RobustGaSP::rgasp(design = designX, response = U[, j], trend = cbind(1, trendX),
@@ -104,7 +105,7 @@ make_emu <- function(designX, responseF, r = NULL, thresh = 0.999) {
         # Generates prior on length scale, based on distribution of distances between design points
         # Upper bound at 100
         d2 <- laGP::darg(list(mle = TRUE, max = 100), designX)
-        cat(sprintf("\nLength scale prior value: %.3f\n", d2$start), file = logfile_build, append = TRUE)
+        cat(sprintf("\nmake_emu: length scale prior value: %.3f\n", d2$start), file = emu_log_file, append = TRUE)
 
         # Local approximate GP object with separable correlation structure
         # based on random sample of simulations
@@ -117,10 +118,10 @@ make_emu <- function(designX, responseF, r = NULL, thresh = 0.999) {
         that <- laGP::mleGPsep(gpsepi, param = "d", tmin = d2$min, tmax = d2$max,
                                ab = d2$ab, maxit = 200)
 
-        cat("\nLength scale estimates for each input:\n", file = logfile_build, append = TRUE)
+        cat("\nmake_emu: length scale estimates for each input:\n", file = emu_log_file, append = TRUE)
 
         for (pp in 1:ncol(designX)) {
-          cat(sprintf("%s: %.4f\n", colnames(designX)[pp], that$d[pp]), file = logfile_build, append = TRUE)
+          cat(sprintf("%s: %.4f\n", colnames(designX)[pp], that$d[pp]), file = emu_log_file, append = TRUE)
         }
 
         # No need to keep the GP object
@@ -314,8 +315,8 @@ make_emu <- function(designX, responseF, r = NULL, thresh = 0.999) {
 
   ## class and return
 
-  cat("\nmake_emu: end of emulator build\n",file = logfile_build, append = TRUE)
-  cat("_____________________________________\n",file = logfile_build, append = TRUE)
+  cat("\nmake_emu: end of emulator build\n",file = emu_log_file, append = TRUE)
+  cat("_____________________________________\n",file = emu_log_file, append = TRUE)
 
   structure(robj, class = "emu")
 

@@ -42,14 +42,8 @@ do_loo <- function(year_list, N_k = NA) {
   # LOO function for one simulation (to parallelise)
   loo_test <- function(ss) {
 
-    # Want same length as N_sims
-    #for ( ss in 1:N_sims) {
-
-    # Test for a subset of simulations
-    #if (ss %in% sim_list) {
-
-    cat(paste0("Simulation ", ss,": ", which(sim_list == ss), " of ", length(sim_list),":\n"),
-        file = logfile_build, append = TRUE)
+    #cat(paste0("Simulation ", ss,": ", which(sim_list == ss), " of ", length(sim_list),":\n"),
+    #    file = logfile_build, append = TRUE)
 
     emu_mv_loo <- NA
 

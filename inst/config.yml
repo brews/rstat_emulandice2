@@ -1,9 +1,9 @@
 default:
   emulator_type: "statGP"
   deliverable_test: FALSE
+  do_loo_validation: TRUE
 lagp:
   emulator_type: "laGP"
 
-deliverable:
-  deliverable_test: TRUE
+
 

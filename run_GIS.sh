@@ -66,5 +66,5 @@ for ssp in "ssp119" "ssp126" "ssp245" "ssp370" "ssp585" "ssp534-over"
 
 # Won't move if predictions exist already
 mkdir $outdir
-mv "$emulandice_dir"/out/GIS* "$emulandice_dir"/data-raw/GIS* $outdir
+mv "$emulandice_dir"/out/GIS* "$emulandice_dir"/data-raw/GIS* "$emulandice_dir"/*RData $outdir
 

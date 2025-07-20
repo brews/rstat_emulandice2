@@ -73,10 +73,8 @@ inputs_ext <- inputs_preprocess
 # Check ice source name
 stopifnot(i_s %in% c("GIS","AIS", "GLA"))
 
-# Temporary switch to go back to deliverable settings for testing
-deliverable_test <- config::get("deliverable_test", file = config_file,
-                                config = "deliverable")
-
+# Switch to go back to deliverable settings for testing
+deliverable_test <- config::get("deliverable_test", file = config_file)
 
 # Just read, filter and plot simulations (for testing etc)
 read_sims_only <- TRUE
@@ -149,9 +147,10 @@ if (i_s == "GLA") {
 N_unif <- 2000L
 
 # Do LOO validation?
-do_loo_validation <- FALSE
-N_k <- NA # 10L # integer for every N_k-th simulation; NA for full LOO
+do_loo_validation <- config::get("do_loo_validation", file = config_file)
+N_k <- 10L # integer for every N_k-th simulation; NA for full LOO # xxx add switch by size?
 
+# May as well switch on full LOO if GIS 2300 (quick)
 if (deliverable_test) {
   if (i_s == "GIS" && final_year > 2100) {
     do_loo_validation <- TRUE
@@ -192,6 +191,7 @@ stopifnot(nyrs %in% c(1, 2, 5, 10))
 # (dropped from unif_temps design if not simulated)
 # over-recon is Heiko's reconstruction of SSP534-over forcing
 
+# Scenario list for plots and projections (not selecting simulations)
 # XXX SHOULD I ADD RCPS FOR GIS?? CHECK WHERE USED IN SIM PLOTS
 scenario_list <- c("SSP119", "SSP126", "SSP245", "SSP370", "SSP534-over", "SSP534-over-recon", "SSP585")
 if (deliverable_test) scenario_list <- c("SSP119", "SSP126", "SSP245", "SSP370", "SSP585")
@@ -462,7 +462,7 @@ temps_baseline <- 2015
 # Altered below if request shorter projections e.g. to 2150 only
 if (i_s == "AIS") temps_list <- 2300
 if (i_s == "GIS") {
-  temps_list <- c(2100, 2200, 2300)
+  temps_list <- 2100 #c(2100, 2200, 2300)
   if (deliverable_test) temps_list <- 2100
 }
 if (i_s == "GLA") {
@@ -1955,8 +1955,7 @@ to_save <- c("climate_data", # CLIMATE MODEL SIMULATION DATA
              "years_em", "N_ts", # List and number of emulated years
              "inputs_centre", "inputs_scale", # Rescaling values for transforming params before/after emulation
              "first_year", "final_year", "cal_start", "cal_end", # Dates of data and calibration period
-             "loo_mean", "loo_sd", "wrong", # LOO lists
-             "yy_plot", "do_loo_years", # Dates to plot
+             "yy_plot", # Dates to plot
              "ice_name", # Nice ice source name for plots
              "GSAT_lab", # Nice plotting labels for GSAT means
              "sle_lim", "sle_inc", "ylim_obs", # Plotting ranges and increments (inc not used currently)
@@ -1976,8 +1975,12 @@ if (emulator_type == "statGP") to_save <- c(to_save, "lower_bound", "kernel", "a
 
 # laGP settings
 # Need to save these because build and predict are done together
-if (emulator_type == "laGP") to_save <- c(to_save, laGP_scaling, laGP_method,
-                                          laGP_nugget_prior)
+if (emulator_type == "laGP") to_save <- c(to_save, "laGP_scaling", "laGP_method",
+                                          "laGP_nugget_prior")
+
+if (do_loo_validation) {
+  to_save <- c(to_save, "loo_mean", "loo_sd", "wrong", "do_loo_years")
+}
 
 save(list = to_save, file = RData_file)
 
