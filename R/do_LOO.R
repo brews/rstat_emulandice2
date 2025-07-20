@@ -28,7 +28,7 @@ do_loo <- function(year_list, N_k = NA) {
   colnames(mean) <- paste0( "y", year_list)
   colnames(sd) <- paste0( "y", year_list)
 
-  # xxx Change to stratified sample
+  # xxx Change to stratified sample?
   if (is.na(N_k) ) {
     sim_list <- 1:N_sims
     cat(paste("\nDoing LOO for all",length(sim_list), "simulations...\n"),file = logfile_build, append = TRUE)

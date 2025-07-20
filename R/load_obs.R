@@ -45,32 +45,39 @@ load_obs <- function() {
 
   } else {
 
-    #  if (i_s == "GIS") obs_file <- read.csv(paste0(inputs_ext,"/GIS/IMBIE/imbie_greenland_2021_mm.csv"))
-    #  if (i_s == "AIS") obs_file <- read.csv(paste0(inputs_ext,"/AIS/IMBIE/imbie_antarctica_2021_mm.csv"))
-
-    if (i_s == "GIS") obs_filename <- paste0(inputs_ext,"/GIS/IMBIE/imbie3_greenland_partitioned_mm.csv")
-    if (i_s == "AIS") obs_filename <- paste0(inputs_ext,"/AIS/IMBIE/imbie3_antarctica_partitioned_mm.csv")
-
-    cat("\nload_obs: reading observations file\n", obs_filename, file = logfile_build, append = TRUE)
-    obs_file <- read.csv(obs_filename)
+    if (deliverable_test) {
+      if (i_s == "GIS") obs_file <- read.csv(paste0(inputs_ext,"/GIS/IMBIE/imbie_greenland_2021_mm.csv"))
+      if (i_s == "AIS") obs_file <- read.csv(paste0(inputs_ext,"/AIS/IMBIE/imbie_antarctica_2021_mm.csv"))
+    } else {
+      if (i_s == "GIS") obs_filename <- paste0(inputs_ext,"/GIS/IMBIE/imbie3_greenland_partitioned_mm.csv")
+      if (i_s == "AIS") obs_filename <- paste0(inputs_ext,"/AIS/IMBIE/imbie3_antarctica_partitioned_mm.csv")
+      obs_file <- read.csv(obs_filename)
+      cat("\nload_obs: reading observations file\n", obs_filename, file = logfile_build, append = TRUE)
+    }
 
     # Pick columns and tidy names
-    # obs_file <- obs_file[ , c("Year","Cumulative.mass.balance..mm.", "Cumulative.mass.balance.uncertainty..mm.") ]
-    # names(obs_file)[2:3] <- c("SLE", "SLE_sd")
+    if (deliverable_test) {
 
-    # XXX check when files final
-    if (i_s == "AIS") obs_file <- obs_file[ , c("YYYY.MM.DD","Cumulative.mass.balance.anomaly..mm.", "Cumulative.mass.balance.anomaly.uncertainty..mm.") ]
-    if (i_s == "GIS") obs_file <- obs_file[ , c("YYYY.MM.DD","Cumulative.mass.balance.anomaly..Gt.", "Cumulative.mass.balance.anomaly.uncertainty..Gt.") ]
-    names(obs_file) <- c( "Year", "SLE", "SLE_sd")
+      obs_file <- obs_file[ , c("Year","Cumulative.mass.balance..mm.", "Cumulative.mass.balance.uncertainty..mm.") ]
+      names(obs_file)[2:3] <- c("SLE", "SLE_sd")
 
-    # Convert formats
-    # Pick December months for years (previously used Jan in old IMBIE)
-    obs_file <- obs_file[ format(as.Date(obs_file[,1]),"%m") == 12,]
+    } else {
 
-    # Rename as annual
-    obs_file[,1] <- as.numeric(format(as.Date(obs_file[,1]),"%Y"))
+      # XXX check when files final
+      if (i_s == "AIS") obs_file <- obs_file[ , c("YYYY.MM.DD","Cumulative.mass.balance.anomaly..mm.", "Cumulative.mass.balance.anomaly.uncertainty..mm.") ]
+      if (i_s == "GIS") obs_file <- obs_file[ , c("YYYY.MM.DD","Cumulative.mass.balance.anomaly..Gt.", "Cumulative.mass.balance.anomaly.uncertainty..Gt.") ]
+      names(obs_file) <- c( "Year", "SLE", "SLE_sd")
 
-    # Uncertainties are negative in file xxx look at why and check Heiko method
+      # Convert formats
+      # Pick December months for years (previously used Jan in old IMBIE)
+      obs_file <- obs_file[ format(as.Date(obs_file[,1]),"%m") == 12,]
+
+      # Rename as annual
+      obs_file[,1] <- as.numeric(format(as.Date(obs_file[,1]),"%Y"))
+
+    }
+
+    # Uncertainties are negative in IMBIE files xxx look at why and check Heiko method
     obs_file[,3] <- -1 * obs_file[,3]
 
   }

@@ -1,0 +1,9 @@
+default:
+  emulator_type: "statGP"
+  deliverable_test: FALSE
+lagp:
+  emulator_type: "laGP"
+
+deliverable:
+  deliverable_test: TRUE
+

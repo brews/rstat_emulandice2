@@ -21,9 +21,9 @@ plot_loo <- function() {
     ww <- wrong[[ yind ]]
 
     # Standardised errors
-    # could save as list from do_loo bit of main instead!
-    #loo_std_errs <- (loo_valid[[yind]]$mean - ice_data[ , yind]) / loo_valid[[yind]]$sd
-    loo_std_errs <- (loo_mean[[yind]] - ice_data[ , yind]) / loo_sd[[yind]]
+    # could save as list from do_loo to save recalculating
+    # Keep as full ensemble length here so can plot against parameter values
+    loo_std_err <- (loo_mean[[yind]] - ice_data[ , yind]) / loo_sd[[yind]]
 
     # Expand plot range for uncertainty interval
     # This works because lower bound always negative
@@ -56,10 +56,10 @@ plot_loo <- function() {
             code = 3, angle = 90, lwd = 0.6, length = 0.02, col = "red" )
 
     # Range of standardised errors (can get very big!)
-    max_range <- range(loo_std_errs, na.rm=TRUE)
+    max_range <- range(loo_std_err, na.rm=TRUE)
     max_range[1] <- floor(max_range[1])
     max_range[2] <- ceiling(max_range[2])
-    hist( loo_std_errs, xlim = c(-6, 6), breaks = seq(from = max_range[1], to = max_range[2], by = 0.2),
+    hist( loo_std_err, xlim = c(-6, 6), breaks = seq(from = max_range[1], to = max_range[2], by = 0.2),
           main = "Standardised LOO errors", col = "darkgrey")
 
     # Now plot by value of input
@@ -89,7 +89,7 @@ plot_loo <- function() {
       points( ice_design[ param_sort, pp], ice_data[ param_sort, yind],
               pch = 20, col = "blue")
 
-      plot( ice_design[ param_sort, pp], loo_std_errs[ param_sort ],
+      plot( ice_design[ param_sort, pp], loo_std_err[ param_sort ],
             xlim = range(ice_design[ , pp]), ylim = c(-6,6),
             pch = 20, xlab = pp, cex = 1.2,
             ylab = paste("Emulated - simulated sea level contribution at",yy,"(cm SLE)"),

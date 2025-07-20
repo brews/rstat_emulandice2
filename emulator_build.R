@@ -46,6 +46,9 @@ if (length(args) == 0) {
 
 }
 
+# Get configuration file settings
+config_file <- system.file("config.yml", package = 'emulandice2', mustWork = TRUE)
+
 # Fix random seed
 set.seed(2024)
 
@@ -71,7 +74,9 @@ inputs_ext <- inputs_preprocess
 stopifnot(i_s %in% c("GIS","AIS", "GLA"))
 
 # Temporary switch to go back to deliverable settings for testing
-deliverable_test <- FALSE
+deliverable_test <- config::get("deliverable_test", file = config_file,
+                                config = "deliverable")
+
 
 # Just read, filter and plot simulations (for testing etc)
 read_sims_only <- TRUE
@@ -129,6 +134,8 @@ if (i_s == "GLA") {
 # Uses minimum of 70% dataset and this for validation part
 target_size <- 1000L
 
+if (deliverable_test) target_size <- 1000L
+
 # Long names for outputs
 if (i_s == "GIS") ice_name <- "Greenland"
 if (i_s == "AIS") ice_name <- "Antarctica"
@@ -144,6 +151,13 @@ N_unif <- 2000L
 # Do LOO validation?
 do_loo_validation <- FALSE
 N_k <- NA # 10L # integer for every N_k-th simulation; NA for full LOO
+
+if (deliverable_test) {
+  if (i_s == "GIS" && final_year > 2100) {
+    do_loo_validation <- TRUE
+    N_k <- NA
+  }
+}
 
 print("************************************************************************************************")
 print("Hello! Welcome to emulandice2: build")
@@ -167,7 +181,9 @@ years_sim <- first_year:final_year
 
 # Timeslice frequency to predict after break year
 # (see below)
-nyrs <- 10
+nyrs <- 5
+
+if (deliverable_test) nyrs <- 5
 
 # Check reasonable choice
 stopifnot(nyrs %in% c(1, 2, 5, 10))
@@ -214,6 +230,7 @@ if (i_s == "GIS") {
   # for CISM runs only
   # Since 250719, have excluded all but a few 2300 for keeping: so set to FALSE
   need_retreat_match <- FALSE
+  if (deliverable_test) need_retreat_match <- TRUE
 
   # Only CISM went beyond 2100 (at all / to any great extent)
   if ( final_year > 2100 &&
@@ -246,7 +263,7 @@ stopifnot( length( setdiff(model_list, model_list_full )) == 0 )
 # Emulator choices ------------------------------------------------------------------------
 
 # Stationary (RobustGaSP) or deep Gaussian Process emulator
-emulator_type <- "statGP"
+emulator_type <- config::get("emulator_type", file = config_file)
 stopifnot(emulator_type %in% c("statGP", "laGP", "deepgp"))
 
 N_mcmc <- NA
@@ -312,6 +329,7 @@ logfile_build <- paste0(outdir, out_name,"_build.txt")
 #______________________________________________________
 # START WRITING LOG FILE
 cat("_____________________________________\n", file = logfile_build)
+
 cat(paste("LAND ICE SOURCE:", ice_name, reg, "\n"), file = logfile_build, append = TRUE)
 if (deliverable_test) cat(paste("\nPROTECT deliverable settings\n"), file = logfile_build, append = TRUE)
 if (impute_sims) cat(paste("Impute simulation missing years\n"), file = logfile_build, append = TRUE)
@@ -344,6 +362,8 @@ if (i_s == "AIS") cal_end <- 2020
 if (i_s == "GIS") cal_end <- 2021 # xxx to 2023 when imbie3
 if (i_s == "GLA") cal_end <- 2020 # because OGGM fails if too early xxx obsolete?
 
+if (deliverable_test) cal_end <- 2020
+
 # Start of calibration period
 # xxx Note cal_start MUST be same as baseline in current code (and makes sense)
 
@@ -365,6 +385,7 @@ if (i_s == "GIS") {
   } else {
     cal_start = 1995 # Elmer/Ice overlap with IMBIE3
   } # xxx change to 1995 when decoupled baseline
+  if (deliverable_test) cal_start <- 2000
 }
 
 # Glaciers
@@ -383,10 +404,14 @@ if (i_s == "GIS") stopifnot( cal_start >= 1971 )
 if (i_s == "GLA") stopifnot( cal_start >= 2000 )
 
 # Construct emulated time series
-#proj_start <- cal_start + 1 # was nyrs
-#years_em <- seq( from = proj_start, by = nyrs, to = years_sim[length(years_sim)] )
-break_yr <- 2030 # end of annual frequency for emulation
-years_em <- c( (cal_start + 1):break_yr-1, seq( from = break_yr, by = nyrs, to = years_sim[length(years_sim)] ))
+if (deliverable_test) {
+  break_yr <- NA
+  proj_start <- cal_start + nyrs
+  years_em <- seq( from = proj_start, by = nyrs, to = years_sim[length(years_sim)] )
+} else {
+  break_yr <- 2030 # end of annual frequency for emulation
+  years_em <- c( (cal_start + 1):break_yr-1, seq( from = break_yr, by = nyrs, to = years_sim[length(years_sim)] ))
+}
 
 # BISICLES tests xxx drop a couple
 years_em <- years_em[ -(length(years_em)-1) ]
@@ -399,9 +424,15 @@ stopifnot(2100 %in% years_em)
 # End of calibration is in projection period, so check we are predicting this year
 stopifnot(cal_end %in% years_em)
 
-cat( paste("Predicting annually from", years_em[1], "to", break_yr,
-           "then every", nyrs, "years to", years_em[length(years_em)], "\n"),
-     file = logfile_build, append = TRUE)
+if (deliverable_test) {
+  cat( paste("Predicting every", nyrs, "years from",
+             years_em[1], "to", years_em[length(years_em)], "\n"),
+       file = logfile_build, append = TRUE)
+} else {
+  cat( paste("Predicting annually from", years_em[1], "to", break_yr,
+             "then every", nyrs, "years to", years_em[length(years_em)], "\n"),
+       file = logfile_build, append = TRUE)
+}
 cat(paste("with respect to year", cal_start, "\n"), file = logfile_build, append = TRUE)
 
 N_ts <- length(years_em)
@@ -1768,19 +1799,23 @@ if (do_loo_validation) {
     loo_err <- loo_mean[[yind]] - ice_data[ , yind ]
     loo_std_err <- loo_err / loo_sd[[yind]]
 
+    # Just keep calculated values
+    loo_err <- loo_err[ N_k_index ]
+    loo_std_err <- loo_std_err[ N_k_index ]
+
     # PRINT RESULTS
     cat(paste("\nLOO VALIDATION:",yy, "\n"), file = logfile_build, append = TRUE)
-    cat(sprintf("Number within %i emulator 95%% intervals: %.2f%%\n", yy,
+    cat(sprintf("Coverage (within %i emulator 95%% intervals): %.2f%%\n", yy,
                 frac_right*100.0), file = logfile_build, append = TRUE)
     cat(sprintf("Mean of %i emulator absolute errors (cm): %.1f\n", yy,
-                mean(abs(loo_err[ N_k_index ]))), file = logfile_build, append = TRUE)
+                mean(abs(loo_err))), file = logfile_build, append = TRUE)
     cat(sprintf("Range of %i emulator absolute errors (cm): [%.1f, %.1f]\n", yy,
-                min(loo_err[ !is.na(loo_err)]), max(loo_err[ N_k_index ])),
+                min(loo_err), max(loo_err)),
         file = logfile_build, append = TRUE)
     cat(sprintf("Mean of %i emulator standardised errors: %.1f\n", yy,
-                mean(loo_std_err[ N_k_index ])), file = logfile_build, append = TRUE)
+                mean(loo_std_err)), file = logfile_build, append = TRUE)
     cat(sprintf("Range of %i emulator standardised errors: [%.1f, %.1f]\n", yy,
-                min(loo_std_err[ N_k_index ]), max(loo_std_err[ N_k_index ])),
+                min(loo_std_err), max(loo_std_err)),
         file = logfile_build, append = TRUE)
 
   } # years
@@ -1920,7 +1955,8 @@ to_save <- c("climate_data", # CLIMATE MODEL SIMULATION DATA
              "years_em", "N_ts", # List and number of emulated years
              "inputs_centre", "inputs_scale", # Rescaling values for transforming params before/after emulation
              "first_year", "final_year", "cal_start", "cal_end", # Dates of data and calibration period
-             "yy_plot", # Dates to plot
+             "loo_mean", "loo_sd", "wrong", # LOO lists
+             "yy_plot", "do_loo_years", # Dates to plot
              "ice_name", # Nice ice source name for plots
              "GSAT_lab", # Nice plotting labels for GSAT means
              "sle_lim", "sle_inc", "ylim_obs", # Plotting ranges and increments (inc not used currently)

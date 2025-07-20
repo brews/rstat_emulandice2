@@ -15,5 +15,6 @@ Imports:
     RobustGaSP,
     deepgp,
     laGP,
+    config,
     ncdf4
 RoxygenNote: 7.2.3

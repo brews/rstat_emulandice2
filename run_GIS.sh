@@ -33,7 +33,7 @@ echo run GIS: build
 Rscript --vanilla -e "library(emulandice2)" -e "source('emulator_build.R')" GIS 0 $final_year
 
 echo
-echo run GIS: predict
+#echo run GIS: predict
 
 if [ "$final_year" -gt 2150 ] # 2100
 then
@@ -65,6 +65,6 @@ for ssp in "ssp119" "ssp126" "ssp245" "ssp370" "ssp585" "ssp534-over"
   done
 
 # Won't move if predictions exist already
-#mkdir $outdir
-#mv "$emulandice_dir"/out/GIS* "$emulandice_dir"/data-raw/GIS* $outdir
+mkdir $outdir
+mv "$emulandice_dir"/out/GIS* "$emulandice_dir"/data-raw/GIS* $outdir
 

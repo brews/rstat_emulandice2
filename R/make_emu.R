@@ -53,8 +53,8 @@ make_emu <- function(designX, responseF, r = NULL, thresh = 0.999) {
   cat(sprintf("make_emu: r = %i, scree = %.1f%%\n", r, 100 * scree[r]), file = logfile_build, append = TRUE)
 
   ## build emulators, hide rgasp output
-
-  sink(file = paste0(outdir,out_name,"_", emulator_type, ".log"))
+  emu_log_file <- paste0(outdir,out_name,"_", emulator_type, ".log")
+  sink(file = emu_log_file)
 
   if ( emulator_type == "statGP") {
 
@@ -64,7 +64,7 @@ make_emu <- function(designX, responseF, r = NULL, thresh = 0.999) {
     # Drop factors (dummy variable columns)
     if ( include_factors) {
 
-      cat("\nDropping factors from trend:\n", file = logfile_build, append = TRUE)
+      cat("\nDropping factors from trends:\n", file = logfile_build, append = TRUE)
       cat(paste(c(ice_dummy_list, "\n"), collapse = " "), file = logfile_build, append = TRUE)
 
       trendX <- trendX[ , input_cont_list]
@@ -77,7 +77,7 @@ make_emu <- function(designX, responseF, r = NULL, thresh = 0.999) {
   # Emulator model for each principal component
   EMU <- lapply(1L:r, function(j) {
 
-    cat(sprintf("\nTraining emulator for PC %i\n", j), file = logfile_build, append = TRUE)
+    cat(sprintf("\nTraining emulator for PC %i\n", j), file = emu_log_file, append = TRUE)
 
     if (emulator_type == "statGP") {
       emu_pc <- RobustGaSP::rgasp(design = designX, response = U[, j], trend = cbind(1, trendX),
@@ -185,7 +185,7 @@ make_emu <- function(designX, responseF, r = NULL, thresh = 0.999) {
       # Trends used in RobustGaSP
       trendXout <- designXout
 
-      # Drop any factors
+      # Drop any factors from trends
       if ( include_factors) {
         tt <- which( input_cont_list %in% colnames(ice_design), arr.ind = TRUE )
         trendXout <- trendXout[ , tt, drop = FALSE]

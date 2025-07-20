@@ -43,41 +43,47 @@ impute_climate <- function(climate_dataset, construct_fixed = FALSE) {
   # GREENLAND ONLY (due to lack of forcings):
   # Construct whole duplicate array of forcings with fixed climate from 2100
   # Not very efficient, but very many are used in ensemble and saves index errors too
-  # Shuffle index is documented in Appendix C of Goelzer et al. (2025) The Cryosphere
   if (construct_fixed) {
 
-    cat(paste("Reconstructing fixed climates from 2100 (repeat 2091-2100, using Heiko's year shuffle)\n"),
-        file = logfile_build, append = TRUE)
-
     # Index for each decade after fixed date
-    #decadal_ind <- seq(from = 2101, to = 2291, by = 10)
+    if (deliverable_test) {
 
-    # Paste 2091-2100 values into these
-    #for (dd in 1:length(decadal_ind)) {
-    #  climate_dataset[ , paste0("y", decadal_ind[dd] + 0:9)] <- climate_dataset[ , paste0("y", 2091:2100)]
-    #}
+      cat(paste("Reconstructing fixed climates from 2100 (repeat 2091-2100)\n"),
+          file = logfile_build, append = TRUE)
 
-    shuffled_time_repeat <- c(2093, 2099, 2095, 2100, 2092, 2097, 2098, 2094,
-    2091, 2096, 2100, 2097, 2099, 2095, 2096, 2091, 2093, 2098, 2094, 2092,
-    2099, 2095, 2094, 2096, 2091, 2097, 2100, 2093, 2092, 2098, 2100, 2095,
-    2098, 2094, 2093, 2097, 2092, 2099, 2096, 2091, 2097, 2098, 2099, 2093,
-    2095, 2100, 2092, 2096, 2091, 2094, 2098, 2091, 2094, 2100, 2099, 2092,
-    2093, 2096, 2095, 2097, 2100, 2094, 2091, 2096, 2095, 2093, 2092, 2099,
-    2097, 2098, 2100, 2098, 2091, 2096, 2093, 2092, 2099, 2094, 2097, 2095,
-    2094, 2097, 2095, 2098, 2093, 2092, 2096, 2099, 2100, 2091, 2097, 2095,
-    2092, 2094, 2100, 2098, 2099, 2091, 2096, 2093, 2093, 2091, 2096, 2095,
-    2097, 2099, 2098, 2092, 2094, 2100, 2097, 2100, 2098, 2096, 2091, 2094,
-    2099, 2092, 2093, 2095, 2091, 2099, 2100, 2093, 2095, 2094, 2092, 2098,
-    2096, 2097, 2094, 2097, 2095, 2099, 2092, 2098, 2096, 2093, 2100, 2091,
-    2094, 2098, 2093, 2097, 2092, 2100, 2096, 2095, 2091, 2099, 2095, 2091,
-    2096, 2100, 2094, 2097, 2093, 2092, 2098, 2099, 2091, 2094, 2092, 2097,
-    2096, 2100, 2098, 2093, 2099, 2095, 2096, 2091, 2094, 2093, 2098, 2097,
-    2092, 2100, 2095, 2099, 2098, 2091, 2100, 2092, 2097, 2094, 2096, 2093,
-    2099, 2095, 2095, 2096, 2091, 2100, 2099, 2093, 2094, 2092, 2097, 2098)
+      decadal_ind <- seq(from = 2101, to = 2291, by = 10)
 
-    # Fill 2101-2300 with shuffled decade
-    climate_dataset[ , paste0("y", 2101:2300) ] <- climate_dataset[ , paste0("y", shuffled_time_repeat)]
+      # Paste 2091-2100 values into these
+      for (dd in 1:length(decadal_ind)) {
+        climate_dataset[ , paste0("y", decadal_ind[dd] + 0:9)] <- climate_dataset[ , paste0("y", 2091:2100)]
+      }
+    } else {
 
+      cat(paste("Reconstructing fixed climates from 2100 (repeat 2091-2100, using Heiko's year shuffle)\n"),
+          file = logfile_build, append = TRUE)
+
+      # Shuffle index from Appendix C of Goelzer et al. (2025) The Cryosphere
+      shuffled_time_repeat <- c(2093, 2099, 2095, 2100, 2092, 2097, 2098, 2094,
+                                2091, 2096, 2100, 2097, 2099, 2095, 2096, 2091, 2093, 2098, 2094, 2092,
+                                2099, 2095, 2094, 2096, 2091, 2097, 2100, 2093, 2092, 2098, 2100, 2095,
+                                2098, 2094, 2093, 2097, 2092, 2099, 2096, 2091, 2097, 2098, 2099, 2093,
+                                2095, 2100, 2092, 2096, 2091, 2094, 2098, 2091, 2094, 2100, 2099, 2092,
+                                2093, 2096, 2095, 2097, 2100, 2094, 2091, 2096, 2095, 2093, 2092, 2099,
+                                2097, 2098, 2100, 2098, 2091, 2096, 2093, 2092, 2099, 2094, 2097, 2095,
+                                2094, 2097, 2095, 2098, 2093, 2092, 2096, 2099, 2100, 2091, 2097, 2095,
+                                2092, 2094, 2100, 2098, 2099, 2091, 2096, 2093, 2093, 2091, 2096, 2095,
+                                2097, 2099, 2098, 2092, 2094, 2100, 2097, 2100, 2098, 2096, 2091, 2094,
+                                2099, 2092, 2093, 2095, 2091, 2099, 2100, 2093, 2095, 2094, 2092, 2098,
+                                2096, 2097, 2094, 2097, 2095, 2099, 2092, 2098, 2096, 2093, 2100, 2091,
+                                2094, 2098, 2093, 2097, 2092, 2100, 2096, 2095, 2091, 2099, 2095, 2091,
+                                2096, 2100, 2094, 2097, 2093, 2092, 2098, 2099, 2091, 2094, 2092, 2097,
+                                2096, 2100, 2098, 2093, 2099, 2095, 2096, 2091, 2094, 2093, 2098, 2097,
+                                2092, 2100, 2095, 2099, 2098, 2091, 2100, 2092, 2097, 2094, 2096, 2093,
+                                2099, 2095, 2095, 2096, 2091, 2100, 2099, 2093, 2094, 2092, 2097, 2098)
+
+      # Fill 2101-2300 with shuffled decade
+      climate_dataset[ , paste0("y", 2101:2300) ] <- climate_dataset[ , paste0("y", shuffled_time_repeat)]
+    }
   }
 
   # Only need scenario, GCM, and date range of simulations
