@@ -128,11 +128,13 @@ if (i_s == "GLA") {
   stopifnot(final_year %in% c(2100, 2150, 2300))
 }
 
-# Set limit on data size for training GP
-# Uses minimum of 70% dataset and this for validation part
-target_size <- 1000L
-
-if (deliverable_test) target_size <- 1000L
+# Set max ensemble size for training GPs
+# Uses minimum of this or 70% of dataset for train and test validation
+# e.g. if 1000, then trains on 700 and uses 300 for testing
+# if 1500, then trains on 1000 and uses 500 for testing
+# if 2000, then still trains on 1000 and uses 1000 for testing
+# Or can set to NA, e.g. for laGP which can handle large data
+N_max_em <- 1000L
 
 # Long names for outputs
 if (i_s == "GIS") ice_name <- "Greenland"
@@ -147,13 +149,14 @@ if (i_s == "GLA") {
 N_unif <- 2000L
 
 # Do LOO validation?
-do_loo_validation <- config::get("do_loo_validation", file = config_file)
-N_k <- 10L # integer for every N_k-th simulation; NA for full LOO # xxx add switch by size?
+validation_type <- config::get("validation_type", file = config_file)
+N_k <- NA # integer for every N_k-th simulation; NA for full LOO # xxx add switch by size?
+stopifnot(validation_type %in% c("tvt", "loo"))
 
 # May as well switch on full LOO if GIS 2300 (quick)
 if (deliverable_test) {
-  if (i_s == "GIS" && final_year > 2100) {
-    do_loo_validation <- TRUE
+  if (i_s == "GIS" && final_year > 2200) {
+    validation_type <- "loo"
     N_k <- NA
   }
 }
@@ -163,7 +166,7 @@ print("Hello! Welcome to emulandice2: build")
 print("************************************************************************************************")
 
 print(paste("Building an emulator for",ice_name,"region",reg,"..."))
-if (do_loo_validation) {
+if (validation_type == "loo") {
   print(paste("LOO with N_k =",N_k,"(could be very slow)"))
 }
 #' ## Projection times and possible scenarios
@@ -439,11 +442,10 @@ N_ts <- length(years_em)
 cat(paste("Timeslices:", N_ts, "\n"), file = logfile_build, append = TRUE)
 
 #' ## Leave-one-out (LOO) validation choices
-
-do_loo_years <- c(2100, 2150, 2200, 2300)
+validation_years <- c( cal_end, 2050, 2100, 2150, 2200, 2300)
 # (Checks these years are emulated later)
 
-if (do_loo_validation) print(paste("LOO years:", paste(do_loo_years, collapse = ",")))
+print(paste("Validation years:", paste(validation_years, collapse = ",")))
 
 #' ## Emulation input choices
 
@@ -462,7 +464,7 @@ temps_baseline <- 2015
 # Altered below if request shorter projections e.g. to 2150 only
 if (i_s == "AIS") temps_list <- 2300
 if (i_s == "GIS") {
-  temps_list <- 2100 #c(2100, 2200, 2300)
+  temps_list <- 2100
   if (deliverable_test) temps_list <- 2100
 }
 if (i_s == "GLA") {
@@ -764,8 +766,8 @@ yy_plot <- c(as.character(cal_end),"2100", "2150", "2200", "2300")
 yy_plot <- yy_plot[ yy_plot %in% years_em ]
 
 # Same for LOO timeslices
-do_loo_years <- do_loo_years[ do_loo_years %in% years_em ]
-if (do_loo_validation && length(do_loo_years) == 0 ) warning("None of requested LOO years are in predictions")
+validation_years <- validation_years[ validation_years %in% years_em ]
+if (length(validation_years) == 0 ) warning("None of the requested validation years are in predictions")
 
 # Match short and full scenario names for plots
 # xxx ADD RCPs?
@@ -1582,6 +1584,9 @@ if (impute_sims) {
   # Transpose to rows for simulations
   ice_data_impute <- t(ice_data_impute)
 
+  # Add historical years xxx change if imputing back too
+  ice_data_impute <- cbind(ice_data[ , paste0("y", years_em[years_em < cal_end])], ice_data_impute)
+
 }
 
 # Testing/sims only
@@ -1593,39 +1598,57 @@ save.image(file="~/PROTECT/emulandice2/sims.RData")
 #' # Build emulator
 # BUILD EMULATOR  ------------------------------------------------------------
 
-make_factor <- function(x) {
-  x[is.na(x)] <- "NA"
-  factor(x)
-}
+# FULL DATASET:
 
-# Get dataset inputs outputs
-X <- ice_design_scaled
+# Inputs
+XX <- ice_design_scaled
 
-# Imputed data or original
+# Outputs: original or imputed
+#if (impute_sims) {
+#  YY <- cbind(ice_data[ , paste0("y", years_em[years_em < cal_end])], ice_data_impute)
+#} else YY <- ice_data[ , paste0("y", years_em) ]
 if (impute_sims) {
-  Y <- cbind(ice_data[ , paste0("y", years_em[years_em < cal_end])], ice_data_impute)
-} else Y <- ice_data[ , paste0("y", years_em) ]
+  YY <- ice_data_impute
+} else YY <- ice_data[ , paste0("y", years_em) ]
 
-# If large dataset, get subset for training
+
+# Train emulators with:
+
+# If validation_type == "loo":
+# 1. Select N = 1000 here, if N_ensemble > 1000 and doing LOO
+# 2. Otherwise, skip and use N = N_ensemble
+
+# If validation_type == "tvt":
+# 3. N =~ 1000, if dataset large and using normal GP
+# 4. N = 70% of N_ensemble, if dataset medium-large OR if GP can cope with large dataset (e.g. laGP)
+# i.e. select non-random sample and reserve 30% / remaining for testing
+
+#' # Select data subset
+# Select data subset  ------------------------------------------------------------
+
+# SUBSET DATA FOR TRAINING: 70% of total, or 70% of N_max_em
 # Samples a balance of factor levels, not just random
-if ( ! is.na(target_size) && dim(ice_data)[1] > target_size ) {
 
-  if ( ! is.na(target_size) ) cat( paste("\nSet",target_size,"max sample size for training\n"),
-                                   file = logfile_build, append = TRUE)
+train_subset <- FALSE
 
-  # Number of simulations to train with: 70% of dataset, or a smaller subsample
-  target_size_min <- round(min(0.7 * dim(ice_data)[1], target_size))
-  if (deliverable_test) target_size_min <- target_size
+# Only do this selection if not using LOO validation later
+# except if reproducing deliverable, which set limit of 1000 for all
+# Note uses of ice_data not YY here are fine: same number of rows as YY (which has imputed years)
+if ( validation_type != "loo" | # case 3,4
+     ( nrow(ice_data) > 1000L &&  validation_type == "loo" && deliverable_test)) { # case 1
 
-  cat( paste("\nSelecting",target_size_min,"simulations for training\n"),
-       file = logfile_build, append = TRUE)
-
-  # Use original dataset inputs
-  # Yes, really! Not emulator inputs, because includes e.g. GCM, SSP etc
+  # Get full dataset design
+  # Yes, really! Not emulator inputs, because full list includes e.g. GCM, SSP etc
   # which is good for sampling GSAT and noisy ice responses to GCMs for given GSAT
+  # So this uses columns that may be ignored everywhere else
   Xraw <- ice_data[, ice_param_list_full]
 
   # Make into nice data frame with factors
+  make_factor <- function(x) {
+    x[is.na(x)] <- "NA"
+    factor(x)
+  }
+
   Xraw <- lapply(Xraw, function(x) {
     if(is.character(x)) {
       make_factor(x)
@@ -1638,35 +1661,71 @@ if ( ! is.na(target_size) && dim(ice_data)[1] > target_size ) {
     if (cc %in% ice_factor_list & !is.factor(Xraw[, cc])) Xraw[, cc] <- make_factor(Xraw[, cc])
   }
 
-  # Output factors
-  cat("\n** Factor levels being used for ordering:\n", file = logfile_build, append = TRUE)
-  for (jj in which(sapply(Xraw, is.factor))) {
-    cat(paste0("\t", names(Xraw)[ jj ], ":\n"), file = logfile_build, append = TRUE)
-    cat(paste0("\t", paste(levels(Xraw[[ jj ]]), collapse = ", "), "\n"), file = logfile_build, append = TRUE)
+  cat( paste("\nMax sample size for training:",N_max_em,"\n"),
+       file = logfile_build, append = TRUE)
+
+  # Number of simulations to train with
+  # If limit set for large dataset: trains with N_max_em at most
+  if ( !is.na(N_max_em)) {
+
+    # Case 3/4 switch: case 4 unless too big, then case 3
+    target_size <- round(min(0.7 * nrow(ice_data), N_max_em))
+
+  } else {
+    # If no limit set (e.g. for GP that can handle large data): train with 70% of full ensemble
+    # Case 4 with no limit
+    target_size <- round(0.7 * nrow(ice_data))
   }
 
-  ## Reorder dataset to make sure factor levels well-sampled at start of list
-  # (simple random if no factors)
-  reordered <- reorder_rows(Xraw, frontLoad = TRUE)
+  # Or subset for LOO in deliverable_test mode xxx check
+  if (nrow(ice_data) > 1000L && deliverable_test && validation_type == "loo") target_size <- 1000L
 
-  # Select first N_subset of rows
-  train <- reordered[1:target_size_min]
+  cat( paste("\nSelecting",target_size,"simulations for training:\n"),
+       file = logfile_build, append = TRUE)
 
-  # Was random sample for deliverable
-  if (deliverable_test) train <- sort(sample(nrow(ice_data), target_size_min))
+  # Was random sample for deliverable, which used LOO
+  if ( nrow(ice_data) > 1000L && deliverable_test && validation_type == "loo") {
+    cat( paste("\n- random sample\n"),
+         file = logfile_build, append = TRUE)
+    train <- sort(sample(nrow(ice_data), target_size))
 
-  # Apply selection to raw design (just for checking), and inputs and outputs
-  Xraw <- Xraw[ train, ]
-  X <- X[ train, ]
-  Y <- Y[ train, ]
+  } else {
 
+    # Order ensemble using all factors in original dataset file
+    # to pick the most informative simulations with respect to the factor levels
+    cat( paste("\n- ordered sample\n"),
+         file = logfile_build, append = TRUE)
+
+    # Output factors
+    cat("\n** Factor levels being used for ordering:\n", file = logfile_build, append = TRUE)
+    for (jj in which(sapply(Xraw, is.factor))) {
+      cat(paste0("\t", names(Xraw)[ jj ], ":\n"), file = logfile_build, append = TRUE)
+      cat(paste0("\t", paste(levels(Xraw[[ jj ]]), collapse = ", "), "\n"), file = logfile_build, append = TRUE)
+    }
+
+    ## Reorder dataset design to make sure factor levels well-sampled at start of list
+    # (simple random if no factors)
+    reordered <- reorder_rows(Xraw, frontLoad = TRUE)
+
+    # Improved method: select first N_subset of rows
+    train <- reordered[ 1:target_size ]
+
+  }
+
+  # Apply random/ordered selection to raw design (just for checking), and inputs and outputs
+  Xraw_sub <- Xraw[ train, ]
+  XX_sub <- XX[ train, ]
+  YY_sub <- YY[ train, ]
+  train_subset <- TRUE
+
+  # Factor levels in training data - all factors, not just emulated
   cat("\n** Factor levels present in training subset:\n", file = logfile_build, append = TRUE)
-  for (jj in which(sapply(Xraw, is.factor))) {
-    cat(paste0("\t", names(Xraw)[ jj ], ":\n"), file = logfile_build, append = TRUE)
-    cat(paste0("\t", paste(levels(Xraw[[ jj ]]), collapse = ", "), "\n"), file = logfile_build, append = TRUE)
+  for (jj in which(sapply(Xraw_sub, is.factor))) {
+    cat(paste0("\t", names(Xraw_sub)[ jj ], ":\n"), file = logfile_build, append = TRUE)
+    cat(paste0("\t", paste(levels(Xraw_sub[[ jj ]]), collapse = ", "), "\n"), file = logfile_build, append = TRUE)
   }
 
-}
+} # if not LOO (or if sampling for deliverable_test LOO)
 
 # make_emu -----
 
@@ -1674,9 +1733,18 @@ if ( ! is.na(target_size) && dim(ice_data)[1] > target_size ) {
 # Writes emu obj into .RData workspace file later for running in FACTS
 # Note this call is repeated in do_LOO.R
 
+# Train with random/ordered subset, or else full dataset ice_data[_impute]
+if (train_subset) {
+  Xtrain <- XX_sub
+  Ytrain <- YY_sub
+} else {
+  # Need to keep XX,YY if test and train validation - draw test_set
+  Xtrain <- XX
+  Ytrain <- YY
+}
+
 print("Building emulator...")
-#show(system.time( try(
-emu_mv <- emulandice2::make_emu( as.matrix(X), as.matrix(Y) ) #) )
+emu_mv <- emulandice2::make_emu( as.matrix(Xtrain), as.matrix(Ytrain) ) # uses same in do_loo() call below
 
 save.image(file="~/PROTECT/emulandice2/make_emu.RData")
 
@@ -1760,15 +1828,19 @@ if (plot_level > 0) {
 #' # Validate
 
 # Validate ---------------------------------------------------------------------
-# Builds LOO multivariate emulators and keeps results for requested timeslices
-if (do_loo_validation) {
+
+# LOO VALIDATION: i.e. train on all-but-one, for validation
+# Should only be used for small datasets
+
+# Builds LOO emulators, and plots + keeps results for requested timeslices
+if (validation_type == "loo") {
 
   cat("\nLEAVE ONE OUT VALIDATION\n", file = logfile_build, append = TRUE)
 
   # Test every N_k-th run
   # this is the slow bit....
   # xxx Improve: stratified by output value instead of every N_k
-  loo_valid_all <- emulandice2::do_loo( do_loo_years, N_k = N_k)
+  loo_valid_all <- emulandice2::do_loo( as.matrix(Xtrain), as.matrix(Ytrain), validation_years, N_k = N_k)
 
   # To store results
   loo_mean <- list()
@@ -1776,7 +1848,7 @@ if (do_loo_validation) {
   wrong <- list()
 
   # Loop over time slices to calculate metrics and make plots
-  for ( yy in do_loo_years) {
+  for ( yy in validation_years) {
 
     yind <- paste0( "y", yy)
 
@@ -1789,14 +1861,14 @@ if (do_loo_validation) {
     N_k_subset <- length( loo_mean[[yind]][ N_k_index ]  )
 
     # Which ones were within predicted intervals and which ones missed?
-    wrong[[ yind ]] <- ice_data[ , yind] > ( loo_mean[[yind]] + 2*loo_sd[[yind]] ) |
-      ice_data[ , yind] < (loo_mean[[yind]]  - 2*loo_sd[[yind]])
+    wrong[[ yind ]] <- Ytrain[ , yind] > ( loo_mean[[yind]] + 2*loo_sd[[yind]] ) |
+      Ytrain[ , yind] < (loo_mean[[yind]]  - 2*loo_sd[[yind]])
 
     # Fraction that missed
     frac_right <- 1 - ( length(which(wrong[[yind]][N_k_index] == TRUE)) / N_k_subset )
 
     # xxx Could save in list for plot_loo, or output summary there - duplication
-    loo_err <- loo_mean[[yind]] - ice_data[ , yind ]
+    loo_err <- loo_mean[[yind]] - Ytrain[ , yind ]
     loo_std_err <- loo_err / loo_sd[[yind]]
 
     # Just keep calculated values
@@ -1827,99 +1899,112 @@ if (do_loo_validation) {
   emulandice2::plot_loo()
   dev.off()
 
-} # do_loo_validation
+} # validation_type == "loo"
 
 
-# Plot validation results
-if ( ! is.na(target_size) && dim(ice_data)[1] > target_size ) {
+
+# Builds emulators on 70% of data (or 70% of N_max_em for large datasets),
+# and plots + keeps results for requested timeslices
+if (validation_type == "tvt") {
+
+  cat("\nTRAIN AND TEST VALIDATION\n", file = logfile_build, append = TRUE)
 
   # Get index of all rows except training data
-  test_set <- reordered[-(1:target_size_min)]
-
-  # Get test dataset
-  test_data <- ice_data[ test_set, ]
+  test_set <- reordered[-(1:target_size)]
 
   # Predict for all the original design points not in the training set
   # Note inputs are already scaled
+  # ice_design_scaled has same number of rows as ice_data
   emu_test <- emulandice2::emulator_predict( ice_design_scaled[ test_set, ] )
 
+  # Unlike LOO, should be no missing data in these: i.e. values for all test sims
+  test_mean <- list()
+  test_sd <- list()
+  test_wrong <- list()
+
   # Use final year requested for LOO validation for now
-  yy <- as.character(do_loo_years[length(do_loo_years)])
-  yind <- paste0("y", yy)
+  for ( yy in validation_years) {
 
-  wrong <- list()
+    #  yy <- as.character(validation_years[length(validation_years)])
+    yind <- paste0("y", yy)
 
-  # XXX Make lists again? or just plot and ditch?
-  test_mean <- emu_test$mean[ , yind]
-  test_sd <- emu_test$sd[ , yind]
+    test_mean[[yind]] <- emu_test$mean[ , yind]
+    test_sd[[yind]] <- emu_test$sd[ , yind]
 
-  yrange <- range(c(test_mean - 4*test_sd, test_mean + 4*test_sd), na.rm = TRUE)
+    # Get test dataset to validate with
+    # YY is the full dataset (with any imputed values), so this should be all but YY[ train ]
+    test_data <- YY[ test_set, ]
 
-  # Misses
-  wrong[[ yind ]] <- test_data[ , yind] > ( test_mean + 2*test_sd ) |
-    test_data[ , yind] < ( test_mean  - 2*test_sd )
-  ww <- wrong[[yind]]
+    # Misses
+    test_wrong[[ yind ]] <- test_data[ , yind] > ( test_mean[[yind]] + 2*test_sd[[yind]] ) |
+      test_data[ , yind] < ( test_mean[[yind]]  - 2*test_sd[[yind]] )
+    ww <- test_wrong[[yind]]
 
-  frac_right <- 1 - ( length(which(wrong[[yind]][test_set] == TRUE)) / length(test_set) )
-  test_err <- test_mean - test_data[ , yind]
-  test_std_err <- test_err / test_sd
+    # Again, no need to select this time unlike for LOO
+    # xxx removed test_set selection which was a bug?!
+    frac_right <- 1 - ( length(which(test_wrong[[yind]] == TRUE)) / length(test_set) )
+    test_err <- test_mean[[yind]] - test_data[ , yind]
+    test_std_err <- test_err / test_sd[[yind]]
 
-  cat(sprintf("\nTRAIN AND TEST VALIDATION (N = %i):", length(test_set)),
-      file = logfile_build, append = TRUE)
-  cat(sprintf("\nNumber within %i emulator 95%% intervals: %.2f%%\n", yy,
-              frac_right*100.0), file = logfile_build, append = TRUE)
-  cat(sprintf("Mean of %i emulator absolute errors (cm): %.1f\n", yy,
-              mean(abs(test_err))), file = logfile_build, append = TRUE)
-  cat(sprintf("Range of %i emulator absolute errors (cm): [%.1f, %.1f]\n", yy,
-              min(test_err[ !is.na(test_err)]), max(test_err)),
-      file = logfile_build, append = TRUE)
-  cat(sprintf("Mean of %i emulator standardised errors: %.1f\n", yy,
-              mean(test_std_err)), file = logfile_build, append = TRUE)
-  cat(sprintf("Range of %i emulator standardised errors: [%.1f, %.1f]\n", yy,
-              min(test_std_err), max(test_std_err)),
-      file = logfile_build, append = TRUE)
+    cat(sprintf("\nTRAIN AND TEST VALIDATION (N = %i):", length(test_set)),
+        file = logfile_build, append = TRUE)
+    cat(sprintf("\nNumber within %s emulator 95%% intervals: %.2f%%\n", yy,
+                frac_right*100.0), file = logfile_build, append = TRUE)
+    cat(sprintf("Mean of %s emulator absolute errors (cm): %.1f\n", yy,
+                mean(abs(test_err))), file = logfile_build, append = TRUE)
+    cat(sprintf("Range of %s emulator absolute errors (cm): [%.1f, %.1f]\n", yy,
+                min(test_err), max(test_err)),
+        file = logfile_build, append = TRUE)
+    cat(sprintf("Mean of %s emulator standardised errors: %.1f\n", yy,
+                mean(test_std_err)), file = logfile_build, append = TRUE)
+    cat(sprintf("Range of %s emulator standardised errors: [%.1f, %.1f]\n", yy,
+                min(test_std_err), max(test_std_err)),
+        file = logfile_build, append = TRUE)
 
+    # Plot: train and test --------
+    # Plot train and test results
+    yrange <- range(c(test_mean[[yind]] - 4*test_sd[[yind]],
+                      test_mean[[yind]] + 4*test_sd[[yind]]), na.rm = TRUE)
 
-  # Plot: train and test --------
-  # Plot train and test results
-  pdf( file = paste0( outdir, out_name, "_VALIDATION_", yy, ".pdf"),
-       width = 5, height = 5)
+    pdf( file = paste0( outdir, out_name, "_VALIDATION_", yy, ".pdf"),
+         width = 5, height = 5)
 
-  plot( test_data[ , yind], test_mean,
-        pch = 20,
-        xlim = yrange, ylim = yrange, cex = 0.8,
-        xaxs = "i", yaxs = "i",
-        xlab = paste("Simulated sea level contribution at",yy,"(cm SLE)"),
-        ylab = paste("Emulated sea level contribution at",yy,"(cm SLE)"),
-        main = paste0("Test set validation (N = ", length(test_set), ")") )
-  abline ( a = 0, b = 1 )
-  if (i_s == "GLA") {
-    abline( h = glacier_cap, col = "lightgrey", lwd = 0.5, lty = 5)
-    abline( v = glacier_cap, col = "lightgrey", lwd = 0.5, lty = 5)
-  }
+    plot( test_data[ , yind], test_mean[[yind]],
+          pch = 20,
+          xlim = yrange, ylim = yrange, cex = 0.8,
+          xaxs = "i", yaxs = "i",
+          xlab = paste("Simulated sea level contribution at",yy,"(cm SLE)"),
+          ylab = paste("Emulated sea level contribution at",yy,"(cm SLE)"),
+          main = paste0("Test set validation (N = ", length(test_set), ")") )
+    abline ( a = 0, b = 1 )
+    if (i_s == "GLA") {
+      abline( h = glacier_cap, col = "lightgrey", lwd = 0.5, lty = 5)
+      abline( v = glacier_cap, col = "lightgrey", lwd = 0.5, lty = 5)
+    }
 
-  # +/- 2 s.d. error bars
-  arrows( test_data[ , yind], test_mean - 2*test_sd,
-          test_data[ , yind], test_mean + 2*test_sd,
-          code = 3, angle = 90, lwd = 0.4, length = 0.02 )
+    # +/- 2 s.d. error bars
+    arrows( test_data[ , yind], test_mean[[yind]] - 2*test_sd[[yind]],
+            test_data[ , yind], test_mean[[yind]] + 2*test_sd[[yind]],
+            code = 3, angle = 90, lwd = 0.4, length = 0.02 )
 
-  # Replot over in red for those that missed - xxx or do together?
-  points( test_data[ ww, yind], test_mean[ww],
-          pch = 20, col = "red")
-  arrows( test_data[ ww, yind],
-          test_mean[ww] - 2*test_sd[ww],
-          test_data[ ww, yind],
-          test_mean[ww] + 2*test_sd[ww],
-          code = 3, angle = 90, lwd = 0.4, length = 0.02, col = "red" )
+    # Replot over in red for those that missed
+    points( test_data[ ww, yind], test_mean[[yind]][ww],
+            pch = 20, col = "red")
+    arrows( test_data[ ww, yind],
+            test_mean[[yind]][ww] - 2*test_sd[[yind]][ww],
+            test_data[ ww, yind],
+            test_mean[[yind]][ww] + 2*test_sd[[yind]][ww],
+            code = 3, angle = 90, lwd = 0.4, length = 0.02, col = "red" )
 
-  text( yrange[1], yrange[1] + 0.95*(yrange[2] - yrange[1]), pos = 4,
-        ice_name, cex = 1.3)
+    text( yrange[1], yrange[1] + 0.95*(yrange[2] - yrange[1]), pos = 4,
+          ice_name, cex = 1.3)
 
-  text( yrange[1], yrange[1] + 0.85*(yrange[2] - yrange[1]), pos = 4,
-        sprintf("%.0f%%", frac_right*100.0), col = ifelse(frac_right < 0.9, "red", "black") )
+    text( yrange[1], yrange[1] + 0.85*(yrange[2] - yrange[1]), pos = 4,
+          sprintf("%.0f%%", frac_right*100.0), col = ifelse(frac_right < 0.9, "red", "black") )
 
-  dev.off()
+    dev.off()
 
+  } # validation_years loop
 }
 
 
@@ -1933,7 +2018,8 @@ RData_file <- paste0(rdatadir, out_name, "_EMULATOR.RData")
 
 # Bit of duplication or unused
 to_save <- c("climate_data", # CLIMATE MODEL SIMULATION DATA
-             "ice_data", # ICE MODEL SIMULATION DATA
+             "ice_data", # ALL SELECTED ICE MODEL SIMULATION DATA
+             "YY", # ice_data or subset of ice_data, with any imputed values
              "obs_data", # OBSERVATION DATA
              "inputs_preprocess", "inputs_ext", # Paths for package data
              "out_name", # General part of all output filenames
@@ -1956,6 +2042,7 @@ to_save <- c("climate_data", # CLIMATE MODEL SIMULATION DATA
              "inputs_centre", "inputs_scale", # Rescaling values for transforming params before/after emulation
              "first_year", "final_year", "cal_start", "cal_end", # Dates of data and calibration period
              "yy_plot", # Dates to plot
+             "validation_type", "validation_years", # Save these for validation plotting
              "ice_name", # Nice ice source name for plots
              "GSAT_lab", # Nice plotting labels for GSAT means
              "sle_lim", "sle_inc", "ylim_obs", # Plotting ranges and increments (inc not used currently)
@@ -1977,9 +2064,14 @@ if (emulator_type == "statGP") to_save <- c(to_save, "lower_bound", "kernel", "a
 # Need to save these because build and predict are done together
 if (emulator_type == "laGP") to_save <- c(to_save, "laGP_scaling", "laGP_method",
                                           "laGP_nugget_prior")
+# LOO validation bits
+if (validation_type == "loo") {
+  to_save <- c(to_save, "loo_mean", "loo_sd", "wrong")
+}
 
-if (do_loo_validation) {
-  to_save <- c(to_save, "loo_mean", "loo_sd", "wrong", "do_loo_years")
+# Train and test validation bits
+if ( validation_type == "tvt" ) {
+  to_save <- c(to_save, "test_mean", "test_sd", "test_wrong", "test_set" )
 }
 
 save(list = to_save, file = RData_file)

@@ -1,7 +1,7 @@
 default:
   emulator_type: "statGP"
   deliverable_test: FALSE
-  do_loo_validation: TRUE
+  validation_type: "tvt"
 lagp:
   emulator_type: "laGP"
 

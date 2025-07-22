@@ -4,6 +4,8 @@
 #' Build emulator on all but one simulation and calculate difference with that
 #' simulation. Repeat for list of all or a subset of the ensemble.
 #'
+#' @param designX Full dataset design
+#' @param responseF Full dataset response
 #' @param year_list List of projection years to do the LOO for.
 #' @param N_k Repeat the LOO for every N_k-th simulation (NA for all)
 #'
@@ -11,7 +13,7 @@
 #'
 #' @export
 
-do_loo <- function(year_list, N_k = NA) {
+do_loo <- function(designX, responseF, year_list, N_k = NA) {
 
   cat("_____________________________________\n",file = logfile_build, append = TRUE)
   cat(paste("do_loo:", paste(year_list, collapse = ","),"\n"), file = logfile_build, append = TRUE)
@@ -48,8 +50,8 @@ do_loo <- function(year_list, N_k = NA) {
     emu_mv_loo <- NA
 
     # Fit emulator to all but that one simulation
-    emu_mv_loo <- try(make_emu( ice_design_scaled[ -ss, ],
-                                as.matrix( ice_data[ -ss, paste0("y", years_em) ] ) ))
+    # 22/7/25: changed to be X and Y from emulator_build.R passed as arguments
+    emu_mv_loo <- try(make_emu( designX[ -ss, ], responseF[ -ss, paste0("y", years_em) ] ))
 
     # Skip if failed
     # xxx This was for GIS CISM while trying to understand error
@@ -57,7 +59,7 @@ do_loo <- function(year_list, N_k = NA) {
     if (inherits(emu_mv_loo, "try-error")) warning("Failed to do LOO test") # next
 
     # Predict for this one
-    emu_one <- emu_mv_loo(ice_design_scaled[ ss, ], type = "sd")
+    emu_one <- emu_mv_loo( designX[ ss, ], type = "sd")
 
     colnames(emu_one$mean) <- paste0("y", years_em)
     colnames(emu_one$sd) <- paste0("y", years_em)
@@ -66,7 +68,7 @@ do_loo <- function(year_list, N_k = NA) {
     if (FALSE ) {
 
       # Only save the years requested for the LOO
-      loo_ind <- which(years_em %in% do_loo_years, arr.ind = TRUE)
+      loo_ind <- which(years_em %in% validation_years, arr.ind = TRUE)
 
       if (nrow(emu_one$mean) == 1) {
         mean[ss, ] <- emu_one$mean[ loo_ind ]
@@ -96,7 +98,7 @@ do_loo <- function(year_list, N_k = NA) {
   for (ii in 1:length(sim_list)) {
 
     ss <- sim_list[ii]
-    loo_ind <- which(years_em %in% do_loo_years, arr.ind = TRUE)
+    loo_ind <- which(years_em %in% validation_years, arr.ind = TRUE)
 
     mean[ss, ] <- emu_all[[ii]]$mean[ loo_ind ]
     sd[ss, ] <- emu_all[[ii]]$sd[ loo_ind ]

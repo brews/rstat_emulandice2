@@ -52,7 +52,7 @@ make_emu <- function(designX, responseF, r = NULL, thresh = 0.999) {
 
   ## write a message
 
-  cat(sprintf("make_emu: r = %i, scree = %.1f%%\n", r, 100 * scree[r]), file = emu_log_file, append = TRUE)
+  cat(sprintf("make_emu: r = %i, scree = %.1f%%\n", r, 100 * scree[r]), file = logfile_build, append = TRUE)
 
   ## build emulators, hide rgasp output
   sink(file = emu_log_file)
