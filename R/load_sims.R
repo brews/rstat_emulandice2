@@ -44,8 +44,8 @@ load_sims <- function(variable, source = NA, region = NA) { # dataset
       if (source == "GLA") {
 
         # Regional file
-#        data_file <- paste0( inputs_preprocess, "/GLA/SLE_SIMULATIONS_GLA_",region,"_250125.csv")
-        data_file <- paste0( inputs_preprocess, "/GLA/SLE_SIMULATIONS_GLA_",region,"_250610.csv")
+        # data_file <- paste0( inputs_preprocess, "/GLA/SLE_SIMULATIONS_GLA_",region,"_250610.csv")
+        data_file <- paste0( inputs_preprocess, "/GLA/GLA_SIMULATIONS_",region,"_mm_SLE_2014_250723.csv")
 
         # All regions in one file when there were not many runs
         if (deliverable_test) data_file <- paste0( inputs_preprocess, "/GLA/SLE_SIMULATIONS_GLA_v2_240317.csv")

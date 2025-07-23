@@ -132,7 +132,7 @@ select_sims <- function(select_type) {
       # Restrict dataset
       ice_data <- ice_data[ complete_sel , ]
 
-      cat( sprintf("\nAfter restricting OGGM and GO to >= %.0f%% complete: %i\n",
+      cat( sprintf("\nAfter restricting to >= %.0f%% complete glaciers (where known): %i\n",
                    100.0*complete_thresh, dim(ice_data)[1]),
            file = logfile_build, append = TRUE )
 

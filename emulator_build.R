@@ -165,7 +165,7 @@ print("*************************************************************************
 print("Hello! Welcome to emulandice2: build")
 print("************************************************************************************************")
 
-print(paste("Building an emulator for",ice_name,"region",reg,"..."))
+print(paste(ice_name,"region",reg))
 if (validation_type == "loo") {
   print(paste("LOO with N_k =",N_k,"(could be very slow)"))
 }
@@ -245,7 +245,7 @@ if (i_s == "GIS") {
 if (i_s == "GLA") {
 
   # All models (do not change!)
-  model_list_full <- c( "GloGEM", "OGGM", "GO" )
+  model_list_full <- c( "GloGEM", "OGGM") # "GO" )
 
   # Pick models, or set to model_list_full to use all
   model_list <- model_list_full
@@ -349,6 +349,7 @@ if (emulator_type == "laGP") {
   cat("laGP method: ", laGP_method, "\n", file = logfile_build, append = TRUE)
   cat("laGP nugget prior: ", laGP_nugget_prior, "\n", file = logfile_build, append = TRUE)
 }
+cat(paste("\nValidation type:", validation_type), file = logfile_build, append = TRUE)
 cat("\n", file = logfile_build, append = TRUE)
 
 #' ## Glacier maximum contributions
@@ -443,9 +444,9 @@ cat(paste("Timeslices:", N_ts, "\n"), file = logfile_build, append = TRUE)
 
 #' ## Leave-one-out (LOO) validation choices
 validation_years <- c( cal_end, 2050, 2100, 2150, 2200, 2300)
-# (Checks these years are emulated later)
+cat(paste("Validation years:", paste(validation_years, collapse = ",")), "\n", file = logfile_build, append = TRUE)
 
-print(paste("Validation years:", paste(validation_years, collapse = ",")))
+# (Checks these years are emulated later)
 
 #' ## Emulation input choices
 
@@ -1589,8 +1590,11 @@ if (impute_sims) {
 
 }
 
-# Testing/sims only
+# Sims only for testing: stop here
 save.image(file="~/PROTECT/emulandice2/sims.RData")
+if ( read_sims_only) {
+  stop("Stopping after reading and plotting simulations", call. = FALSE)
+}
 #stopifnot( read_sims_only == FALSE )
 
 

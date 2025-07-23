@@ -30,11 +30,12 @@ model_list=GloGEM_OGGM_GO
 now=$(date +'%y%m%d')
 outdir="$results_dir"/"$now"_GLA_ALL_"$final_year"
 
-for region in 09 # $(seq -f "%02g" 1 19) # if running only one region, then zero-pad!
+for region in $(seq -f "%02g" 1 19) #  all regions
+# for region in 09 # one region (must zero-pad)
 do
 
   echo
-  echo "run GLA: build file for region RGI: $region"
+  echo "run_GLA.sh: build file for region RGI: $region"
 
   Rscript --vanilla -e "library(emulandice2)" -e "source('emulator_build.R')" GLA $region $final_year
 
@@ -48,7 +49,7 @@ do
 
   # START PREDICTION
  # echo
-  #echo "run GLA: predict for region RGI: $region"
+  #echo "run_GLA.sh: predict for region RGI: $region"
 
   for ssp in "ssp119" "ssp126" "ssp245" "ssp370" "ssp585" "ssp534-over"
   do
