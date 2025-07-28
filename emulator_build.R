@@ -80,8 +80,10 @@ deliverable_test <- config::get("deliverable_test", file = config_file)
 read_sims_only <- TRUE
 
 # Impute missing years in simulations: currently just AIS to 2150
-impute_sims <- ifelse(i_s == "AIS" && final_year == "2150", TRUE, FALSE)
-if (deliverable_test) impute_sims <- FALSE
+#impute_sims <- ifelse(i_s == "AIS" && final_year == "2150", TRUE, FALSE)
+impute_sims <- "extend"
+stopifnot(impute_sims %in% c("none", "fill", "extend"))
+if (deliverable_test) impute_sims <- "none"
 
 # Later there are options to pick sub-ensembles (obsolete / not used?)
 ensemble_subset <- NA
@@ -214,7 +216,7 @@ if (i_s == "AIS") {
     if (deliverable_test) model_list <- c( "Kori", "PISM")
   } else model_list <- model_list_full
 
-  model_list <- "BISICLES" # test xxx
+  model_list <- model_list_full
 
 }
 
@@ -335,11 +337,11 @@ cat("_____________________________________\n", file = logfile_build)
 
 cat(paste("LAND ICE SOURCE:", ice_name, reg, "\n"), file = logfile_build, append = TRUE)
 if (deliverable_test) cat(paste("\nPROTECT deliverable settings\n"), file = logfile_build, append = TRUE)
-if (impute_sims) cat(paste("Impute simulation missing years\n"), file = logfile_build, append = TRUE)
+if (impute_sims != "none") cat(paste("Impute simulations:", impute_sims, "\n"), file = logfile_build, append = TRUE)
 cat( paste("\nEnsemble subset:", ensemble_subset,"\n"), file = logfile_build, append = TRUE)
 cat(paste( "MODELS:", paste(model_list, collapse = ", "), "\n"), file = logfile_build, append = TRUE)
 cat(paste("\nDate range of simulations to be used:",
-          years_sim[1],"-", years_sim[length(years_sim)], "\n"),
+          first_year,"-", final_year, "\n"),
     file = logfile_build, append = TRUE)
 cat(paste("\nEmulator type:", emulator_type), file = logfile_build, append = TRUE)
 cat(paste("\nEmulator covariance:", emulator_covar), file = logfile_build, append = TRUE)
@@ -379,7 +381,6 @@ if (deliverable_test) cal_end <- 2020
 if (i_s == "AIS") {
   cal_start <- 2015 # BISICLES starts in 2007; IMAUICE in 2014
   if (deliverable_test) cal_start <- 2000
-  cal_start <- 2007 # BISICLES xxx
 }
 
 # Greenland
@@ -411,16 +412,16 @@ if (i_s == "GLA") stopifnot( cal_start >= 2000 )
 if (deliverable_test) {
   break_yr <- NA
   proj_start <- cal_start + nyrs
-  years_em <- seq( from = proj_start, by = nyrs, to = years_sim[length(years_sim)] )
+  years_em <- seq( from = proj_start, by = nyrs, to = final_year )
 } else {
   break_yr <- 2030 # end of annual frequency for emulation
-  years_em <- c( (cal_start + 1):break_yr-1, seq( from = break_yr, by = nyrs, to = years_sim[length(years_sim)] ))
+  years_em <- c( (cal_start + 1):break_yr-1, seq( from = break_yr, by = nyrs, to = final_year ))
 }
 
 # BISICLES tests xxx drop a couple
-years_em <- years_em[ -(length(years_em)-1) ]
-years_em <- years_em[ -(length(years_em)-2) ]
-years_em <- years_em[ -(length(years_em)-4) ]
+#years_em <- years_em[ -(length(years_em)-1) ]
+#years_em <- years_em[ -(length(years_em)-2) ]
+#years_em <- years_em[ -(length(years_em)-4) ]
 
 # Basic check not done something daft with timeslices
 stopifnot(2100 %in% years_em)
@@ -480,10 +481,10 @@ N_temp_yrs <- 30
 
 cat(paste("GSAT baseline first year:", temps_baseline, "\n"), file = logfile_build, append = TRUE)
 cat(paste("GSAT final year(s):", paste(temps_list, collapse = ","), "\n"), file = logfile_build, append = TRUE)
-if (max(temps_list) > max(years_sim)) {
+if (max(temps_list) > final_year) {
   cat("GSAT timeslice(s) extend beyond ice model simulation: adjusting\n", file = logfile_build, append = TRUE)
-  temps_list <- temps_list[ temps_list <= max(years_sim) ]
-  if (length(temps_list) == 0) temps_list <- max(years_sim)
+  temps_list <- temps_list[ temps_list <= final_year ]
+  if (length(temps_list) == 0) temps_list <- final_year
   cat(paste("New GSAT input timeslice(s):", paste(temps_list, collapse = ","), "\n"), file = logfile_build, append = TRUE)
 }
 cat(paste("GSAT period:", N_temp_yrs, "years\n"), file = logfile_build, append = TRUE)
@@ -559,9 +560,9 @@ if (i_s == "AIS") {
                                       "heat_flux_ISMIP6_nonlocal",
                                       "heat_flux_ISMIP6_nonlocal_slope")
   # Local only varied for 2100 runs
-  # which are imputed to 2150 if impute_sims = TRUE
-  if (final_year == "2100" || impute_sims) ice_cont_list_model[["CISM"]] <- c(ice_cont_list_model[["CISM"]],
-                                                                              "heat_flux_ISMIP6_local")
+  # but these are imputed to 2150 if impute_sims = TRUE
+  if (final_year == "2100" || impute_sims == "extend") ice_cont_list_model[["CISM"]] <- c(ice_cont_list_model[["CISM"]],
+                                                                                          "heat_flux_ISMIP6_local")
   ice_factor_list_model[["CISM"]] <- c("melt_param", "sliding_law")
 
   # Elmer/Ice
@@ -942,8 +943,9 @@ climate_data <- impute_climate(climate_csv)
 # Calculate climate change timeslice(s) e.g. GSAT_2100 for emulator input(s)
 # Also for all rows in climate data - not very effcient
 # Option to add ensemble mean for each SSP for missing forcings
-# (for imputing ice simulations later)
-temps_data <- emulandice2::calc_temps(climate_data, mean_impute = impute_sims)
+# (for imputing to extend ice simulations later)
+impute_gcms <- ifelse(impute_sims == "extend", TRUE, FALSE)
+temps_data <- emulandice2::calc_temps(climate_data, mean_impute = impute_gcms)
 
 # For GIS post-2100, repeat with fixed climate forcings
 # No need to set mean_impute, because this is already filling in [?]
@@ -966,9 +968,9 @@ ice_file_yr_start_col <- suppressWarnings( myind <- min(which( nchar(names(ice_d
 #ice_file_yr_start <- as.numeric(substr(names(ice_data)[ice_file_yr_start_col], 2, 5))
 #ice_file_yr_end <- as.numeric(substr(names(ice_data)[length(names(ice_data))], 2, 5))
 
-# Check requested years_sim are within file year range from these columns
-stopifnot(min(years_sim) >= as.numeric(substr(names(ice_data)[ ice_file_yr_start_col ], 2, 5)) &&
-            max(years_sim) <= as.numeric(substr(names(ice_data)[ length(names(ice_data)) ], 2, 5)) )
+# Check requested years are within file year range from these columns
+stopifnot(first_year >= as.numeric(substr(names(ice_data)[ ice_file_yr_start_col ], 2, 5)) &&
+            final_year <= as.numeric(substr(names(ice_data)[ length(names(ice_data)) ], 2, 5)) )
 
 # Get column number of first ice model input
 # which is first one after this list
@@ -1011,7 +1013,7 @@ if (deliverable_test) {
 # Match climate ---------------------------------------------------------------
 
 # Get corresponding climate change(s) (match by GCM + scenario)
-temps <- emulandice2::match_gcms(ice_data, temps_data, mean_impute = impute_sims) # XXX CHECK: was TRUE
+temps <- emulandice2::match_gcms(ice_data, temps_data, mean_impute = impute_gcms)
 
 # For GIS post-2100, get fixed climate forcing change(s)
 # and overwrite into rows of temps with fixed_date = 2100
@@ -1516,14 +1518,18 @@ if (plot_level > 0) {
 
 # Impute missing ---------------------------------------------------------------
 
-if (impute_sims) {
+# for Jonty xxx
+
+if (impute_sims != "none") {
 
   # Impute data (take from end of calibration period ta avoid calibrating imputed)
-  cat( paste0("\nImpute missing data with SVD\n"),
+  cat( paste0("\nImpute simulations with SVD: ",impute_sims,"\n"),
        file = logfile_build, append = TRUE)
 
   #ssp <- "SSP585"
   years_proj <- years_em[years_em >= cal_end]
+
+  # xxx 25/7/24: think climate not used because entire scenarios often don't exist anyway?
 
   #ssp_ind <- ice_data$scenario == ssp
   #ice_data_scen <- ice_data[ ssp_ind, ]
@@ -1545,7 +1551,7 @@ if (impute_sims) {
   #  ice_data_proj <- rbind( ice_data_proj, clim_scen )
   #  rownames(ice_data_proj)[ dim(ice_data_proj)[1] - dim(clim_scen)[1] + 1:(dim(clim_scen)[1]) ] <- rownames(clim_scen)
 
-
+# no longer needed? xxx
   is.scalar <- function(x)
     is.numeric(x) && length(x) == 1L && !is.na(x)
 
@@ -1555,48 +1561,54 @@ if (impute_sims) {
   is.pos.int <- function(x)
     is.int(x) && x > 0
 
-  # Use SVD to impute missing years
-  # Transpose because SVD convention is to fill rows not columns
-  ice_data_proj <- t(ice_data[ , paste0("y", years_proj) ])
+  # Use SVD to impute missing years within time series and at end (up to limit)
+  ice_data_proj <- ice_data[ , paste0("y", years_proj) ]
+  ice_data_impute <- emulandice2::SVDimpute( as.matrix(ice_data_proj) )
 
-  # Output is also transposed but keep this for matplot initially
-  ice_data_impute <- emulandice2::SVDimpute( ice_data_proj )
+  # To insert Jonty's code
+#  X <- t(ice_data_proj)
+#  year <- as.numeric(sub("^y", "", rownames(X)))
 
-  #pdf( file = paste0( outdir, out_name, "_impute.pdf"),
-  #     width = 9, height = 5)
+  # If imputed any values, plot
+  if ( ! identical(ice_data_proj, ice_data_impute) ) {
 
-  # Plot imputed rows - any missing values in original data
-  # XXX Fix year scale - not years_em
-  # matplot(years_em, ice_data_impute, type = "l", col = grey(0.1, 0.1),
-  #          lty=1, xlab = "Year", ylab = "Sea level contribution (cm SLE)", main = i_s)
-  #  matlines(years_em, ice_data_impute[, which(is.na(ice_data_proj), arr.ind=TRUE)],
-  #           type = "l", col = "red", lty = 1)
-  #  matlines(years_em, ice_data_proj[, which(is.na(ice_data_proj), arr.ind=TRUE)],
-  #           type = "l", col = "black", lty = 1)
+    pdf( file = paste0( outdir, out_name, "_impute.pdf"),
+         width = 9, height = 5)
 
-  # Zoom into main sims imputed - missing values at 2105
-  #matplot(seq(2020, 2150, by = 5), ice_data_impute[, which(is.na(ice_data_proj[ "y2105", ]), arr.ind=TRUE) ],
-  #        type = "l", col = "red",
-  #        lty=1, xlab = "Year", ylab = "Sea level contribution (cm SLE)", main = paste(i_s,"imputed from 2105") )
-  #matlines(seq(2020, 2150, by = 5), ice_data_proj[, which(is.na(ice_data_proj[ "y2105", ]), arr.ind=TRUE)],
-  #         type = "l", col = "black", lty = 1)
-  #dev.off()
+    # All data
+    matplot(years_proj, t(ice_data_impute), type = "n", col = grey(0.1, 0.1),
+            lty=1, xlab = "Year", ylab = "Sea level contribution (cm SLE)", main = i_s)
+
+    # Imputed values (where original were NA)
+    matlines(years_proj, t(ice_data_impute[ which(is.na(ice_data_proj), arr.ind=TRUE), ]),
+             type = "l", col = "red", lty = 1, lwd = 0.5)
+    # Simulated values
+    matlines(years_proj, t(ice_data_proj[ which(is.na(ice_data_proj), arr.ind=TRUE), ]),
+             type = "l", col = "black", lty = 1, lwd = 0.5)
+
+    # Zoom into main sims imputed - missing values at 2105
+    # xxx not working - fix x and/or y values
+    #  matplot(seq(2020, 2150, by = 5), ice_data_impute[, which(is.na(ice_data_proj[ "y2105", ]), arr.ind=TRUE) ],
+    #          type = "l", col = "red",
+    #          lty=1, xlab = "Year", ylab = "Sea level contribution (cm SLE)", main = paste(i_s,"imputed from 2105") )
+    #  matlines(seq(2020, 2150, by = 5), ice_data_proj[, which(is.na(ice_data_proj[ "y2105", ]), arr.ind=TRUE)],
+    #           type = "l", col = "black", lty = 1)
+    dev.off()
+
+  } # if imputed any
 
   # Transpose to rows for simulations
-  ice_data_impute <- t(ice_data_impute)
+  #ice_data_impute <- t(ice_data_impute)
 
   # Add historical years xxx change if imputing back too
   ice_data_impute <- cbind(ice_data[ , paste0("y", years_em[years_em < cal_end])], ice_data_impute)
+
 
 }
 
 # Sims only for testing: stop here
 save.image(file="~/PROTECT/emulandice2/sims.RData")
-if ( read_sims_only) {
-  stop("Stopping after reading and plotting simulations", call. = FALSE)
-}
-#stopifnot( read_sims_only == FALSE )
-
+if ( read_sims_only) stop("Stopping after reading and plotting simulations", call. = FALSE)
 
 # ________________----
 #' # Build emulator
@@ -1611,7 +1623,7 @@ XX <- ice_design_scaled
 #if (impute_sims) {
 #  YY <- cbind(ice_data[ , paste0("y", years_em[years_em < cal_end])], ice_data_impute)
 #} else YY <- ice_data[ , paste0("y", years_em) ]
-if (impute_sims) {
+if (impute_sims != "none") {
   YY <- ice_data_impute
 } else YY <- ice_data[ , paste0("y", years_em) ]
 
@@ -1633,6 +1645,7 @@ if (impute_sims) {
 # SUBSET DATA FOR TRAINING: 70% of total, or 70% of N_max_em
 # Samples a balance of factor levels, not just random
 
+# Will be set to TRUE later if subset taken
 train_subset <- FALSE
 
 # Only do this selection if not using LOO validation later
@@ -1673,23 +1686,26 @@ if ( validation_type != "loo" | # case 3,4
   if ( !is.na(N_max_em)) {
 
     # Case 3/4 switch: case 4 unless too big, then case 3
-    target_size <- round(min(0.7 * nrow(ice_data), N_max_em))
+    target_size <- round( min(0.7 * nrow(ice_data), N_max_em) )
 
   } else {
     # If no limit set (e.g. for GP that can handle large data): train with 70% of full ensemble
     # Case 4 with no limit
     target_size <- round(0.7 * nrow(ice_data))
+
   }
 
-  # Or subset for LOO in deliverable_test mode xxx check
-  if (nrow(ice_data) > 1000L && deliverable_test && validation_type == "loo") target_size <- 1000L
+  # Or subset for LOO in deliverable_test mode xxx double-check this
+  if (nrow(ice_data) > 1000L && deliverable_test && validation_type == "loo") {
+    target_size <- 1000L
+  }
 
   cat( paste("\nSelecting",target_size,"simulations for training:\n"),
        file = logfile_build, append = TRUE)
 
   # Was random sample for deliverable, which used LOO
   if ( nrow(ice_data) > 1000L && deliverable_test && validation_type == "loo") {
-    cat( paste("\n- random sample\n"),
+    cat( paste("- random sample\n"),
          file = logfile_build, append = TRUE)
     train <- sort(sample(nrow(ice_data), target_size))
 
@@ -1697,7 +1713,7 @@ if ( validation_type != "loo" | # case 3,4
 
     # Order ensemble using all factors in original dataset file
     # to pick the most informative simulations with respect to the factor levels
-    cat( paste("\n- ordered sample\n"),
+    cat( paste("- ordered sample\n"),
          file = logfile_build, append = TRUE)
 
     # Output factors

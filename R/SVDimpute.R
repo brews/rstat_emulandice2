@@ -1,127 +1,135 @@
 #' SVD Imputation Algorithm for Matrix Completion
-#' Code by Jonty Rougier
 #'
 #' @description
-#' Replace `NA` values in matrix `X` with imputed values.  Order `X` with time or equivalent down the rows, because the imputation is done row by row.
+#' Replace `NA` values in matrix `X` with imputed values.  Standardisation is done down the columns, and imputation along the rows, because the typical set-up would be variables in the columns and cases in the rows.  If your `X` is the other way around, then use `transpose = TRUE`.  _The ordering of the columns matters_ because Last Value Carried Forwards (and then Next Value Carried Backwards) is used to initialize the `NA`s in each row.
 #'
-#' Although `k` can be specified directly, it is safer to set it indirectly using `pmin`.
+#' Although `k` can be specified directly, it is safer to set it indirectly using `pmin`, see Details.
 #'
 #' @param X Numeric matrix containing missing values as `NA`.
 #' @param k Desired rank.
 #' @param pmin Minimum proportional variation, used to set `k` if `k = NULL`, see Details.
-#' @param reltol Relative tolerance for exit condition, see Details.
-#' @param maxit Maximum number of iterations, see Details.
+#' @param transpose Logical, swap rows and columns internally.
 #'
-#' @details The algorithm exits if:
+#' @details
+#' `X` cannot have a whole row or a whole column of missing values. `NA`s in `X` are initially filled using row effects, after the columns of `X` have been standardized.
+#' 
+#' If `k` is not specified, the value of `k` is calculated from the SVD of filled `X` after it has been centered and scaled.  `k` is the smallest value for which the proportion of variation is at least `pmin`.
 #'
-#' 1. There has been `maxit` iterations.
-#' 2. The norm of the change in the imputed values starts to rise.
-#' 3. The norm of the change in the imputed values falls below `reltol` times the norm of `X` (after scaling).
-#'
-#' If `k` is not specified, the value of `k` is calculated from the SVD of `X` after it has been centered and scaled and `NA` values have been imputed using row means.  `k` is the smallest value for which the proportion of variation is at least `pmin`.
-#'
-#' @returns A matrix like `X` but with the `NA`s imputed, plus an attributes `k` and `niter`, the number of iterations.
+#' @returns A matrix like `X` but with the `NA`s imputed, plus an attribute `k`, the rank.
 #'
 #' @references Olga Troyanskaya, Michael Cantor, Gavin Sherlock, Pat Brown, Trevor Hastie, Robert Tibshirani, David Botstein, Russ B. Altman, Missing value estimation methods for DNA microarrays, Bioinformatics, Volume 17, Issue 6, June 2001, Pages 520–525, <https://doi.org/10.1093/bioinformatics/17.6.520>.
 #'
+
+## general purpose check for scalar arguments
+
+is.scalar <- function(x, round = FALSE, positive = FALSE, strict = TRUE) {
+  ok <- is.numeric(x) && length(x) == 1L && !is.na(x)
+  if (isTRUE(round)) ok <- ok && (x == round(x))
+  if (isTRUE(positive)) {
+    ok <- ok && ifelse(isTRUE(strict), x > 0, x >= 0)
+  }
+  ok
+}
+
+LVCF <- function(x) {
+  nna <- !is.na(x)
+  if (all(nna)) return(x)
+  y <- x[nna][cumsum(nna)]
+  c(rep(NA, length(x) - length(y)), y)
+}
+
+NVCB <- function(x) {
+  rev(LVCF(rev(x)))
+}
+
+up_down <- function(x) {
+  NVCB(LVCF(x))
+}
+
 #' @export
 
-SVDimpute <- function(X, k = NULL, pmin = 0.99, reltol = 1E-3, maxit = 20) {
+SVDimpute <- function(X, k = NULL, pmin = 1 - 1E-4, maxit = 5,
+  transpose = FALSE) {
 
-  stopifnot(is.matrix(X), is.numeric(X), is.scalar(reltol), is.scalar(maxit))
-  if (!anyNA(X)) {
-    warning("No missing values")
-    return(X)
+  ## these are just to clarify error messages
+
+  is.nnint <- function(x) {
+    is.scalar(x, round = TRUE, positive = TRUE, strict = FALSE)
   }
 
-  ## into differences
-
-  dn <- dimnames(X)
-  first_row <- X[1L, ]
-  X0 <- X <- apply(unname(X), 2L, diff) # save NAs in X0
-
-  repack <- function(X) {
-    X <- apply(rbind(first_row, X), 2L, cumsum)
-    dimnames(X) <- dn
-    X
+  is.posint <- function(x) {
+    is.scalar(x, round = TRUE, positive = TRUE)
   }
 
-  ## initial fill
+  stopifnot(is.matrix(X), is.numeric(X), is.nnint(maxit))
+  transpose <- isTRUE(transpose)
+  if (transpose) X <- t(X)
 
-  last_all <- which.max(apply(is.na(X), 1L, any)) - 1L
-  data <- data.frame(y = as.vector(X), row = as.factor(row(X)))
-  data$offset <- X[last_all, col(X)]
-  na <- is.na(data$y)
-  lmo <- lm(y ~ row, offset = offset, data = data[!na, ])
-  pp <- predict(lmo, newdata = data[na, ])
-  X[na] <- pp
-
-  if (maxit < 1) {
-    return(repack(X))
+  na_mask <- is.na(X)
+  if (!any(na_mask)) return(X)
+  na_row <- apply(na_mask, 1L, all)
+  na_col <- apply(na_mask, 2L, all)
+  if (any(na_row) || any(na_col)) {
+    stop("cannot impute with entire row or column missing")
   }
-  maxit[] <- ceiling(maxit)
 
-  ## estimate rank from filled X
+  ## infill with LVCF/NVCB
 
+  Y <- X
+  Y[] <- t(apply(Y, 1L, up_down))
+
+  ## rescale
+
+  xmn <- colMeans(Y, na.rm = TRUE)
+  Y[] <- sweep(Y, 2L, xmn, "-")
+  xsd <- zapsmall(sqrt(colMeans(Y * Y, na.rm = TRUE)))
+  xsd <- ifelse(xsd == 0, 1, xsd)
+  Y[] <- sweep(Y, 2L, xsd, "/") # now standardized, still has NAs
+
+  ## find k, check rank
+
+  decomp <- svd(Y, nu = 0, nv = 0) # no NAs in Y
+  d <- decomp$d^2
+  r <- sum(d > 0)
   if (is.null(k)) {
     stopifnot(is.scalar(pmin), 0 < pmin, pmin < 1)
-    decomp <- svd(X, nu = 0, nv = 0) # no NAs in X
-    d <- decomp$d^2
     d <- cumsum(d) / sum(d)
     k <- which.max(d >= pmin)
   } else {
-    stopifnot(is.pos.int(k))
+    stopifnot(is.posint(k))
+  }
+  if (k >= r) {
+    stop("\'k\' too large")
   }
 
   ## iterate row completion
 
-  na <- which(is.na(X0), arr.ind = TRUE)
+  na <- which(na_mask, arr.ind = TRUE)
   ivals <- unique(na[, 1L])
-  jvals <- lapply(ivals, function(i) {
-    na[na[, 1L] == i, 2L]
+  na_list <- lapply(ivals, function(i) {
+    list(i = i, j = na[na[, 1L] == i, 2L])
   })
-
-  ## exit criterion
-
-  frob <- function(X) {
-    sqrt(sum(X * X))
-  }
-  f0 <- frob(X)
-  na <- is.na(X0)
-  newimp <- imp <- X[na]
-  newdd <- dd <- Inf
 
   ## here we go
 
-  for (iter in seq.int(maxit)) {
-    decomp <- svd(X, nu = 0, nv = k) # thin SVD
-    xx <- decomp$v # n by k
-    for (i in ivals) {
-      for (j in jvals[[match(i, ivals)]]) {
-        coff <- qr.coef(qr(xx[-j, , drop=FALSE]), X[i, -j]) # k vector
-        X[i, j] <- drop(crossprod(xx[j, ], coff))
+  for (iter in seq_len(maxit)) {
+    U <- svd(Y, nu = k, nv = 0)$u # thin SVD
+    for (rw in na_list) {
+      i <- rw$i
+      for (j in rw$j) {
+        coff <- qr.coef(qr(U[-i, , drop=FALSE]), Y[-i, j]) # k vector
+        Y[i, j] <- drop(crossprod(U[i, ], coff))
       }
     }
-    newimp[] <- X[na]
-    if (anyNA(newimp)) {
-      stop("your \'k\' is too large")
-    }
-    newdd[] <- frob(imp - newimp)
-#    show(c(dd, newdd)) # This prints iteration to screen
-    if (newdd > dd) {
-      X[na] <- imp # reset
-      break
-    }
-    if (newdd < reltol * (f0 + reltol)) {
-      break
-    }
-    imp[] <- newimp
-    dd[] <- newdd
   }
 
-  X <- repack(X)
-  attr(X, "k") <- k
-  attr(X, "niter") <- iter
+  ## package and return
+
+  X <- sweep(Y, 2L, xsd, "*")
+  X[] <- sweep(X, 2L, xmn, "+")
+  if (transpose) X <- t(X)
+  attr(X, "param") <- list(transpose = transpose, pmin = pmin,
+    k = k, rank = r, maxit = maxit)
   X
 }
 

@@ -40,7 +40,7 @@ plot_designs <- function(data_type, plot_level = 0) {
       }
 
       plot(first_year:final_year, to_plot[1,], type = "n",
-           ylim = range( to_plot ),
+           ylim = range( to_plot, na.rm = TRUE ),
            xlim = c(first_year, final_year), xaxs = "i",
            xlab = "Year", ylab = "Global mean temperature relative to 2015 (degC)")
       abline(h=0, lwd=0.5)
@@ -64,7 +64,7 @@ plot_designs <- function(data_type, plot_level = 0) {
         if (is.null(col)) col <- AR6_rgb_med[[ strsplit( ff, " ")[[1]][1]  ]]
         if (is.null(col)) col <- "grey"
 
-        text( first_year, yleg * max( to_plot ), pos = 4,
+        text( first_year, yleg * max( to_plot, na.rm = TRUE ), pos = 4,
               textlab, col = col)
         yleg <- yleg - 0.07
       }
@@ -168,28 +168,28 @@ plot_designs <- function(data_type, plot_level = 0) {
         if (yy == cal_end) {
           abline( h = obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"],
                   col = grey(0.2, 0.4), lwd = 1.6)
-          rect( min(plot_temps),
+          rect( min(plot_temps, na.rm = TRUE),
                 obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] - 3 * obs_data[obs_data$Year == cal_end,"SLE_sd"],
-                max(plot_temps),
+                max(plot_temps, na.rm = TRUE),
                 obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] + 3 * obs_data[obs_data$Year == cal_end,"SLE_sd"],
                 col = grey(0.2,0.04), border = "black", lwd = 0.5, lty = 5)
           if (plot_level > 2) {
-            rect( min(plot_temps),
+            rect( min(plot_temps, na.rm = TRUE),
                   obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] - 3 * total_err[obs_data$Year == cal_end],
-                  max(plot_temps),
+                  max(plot_temps, na.rm = TRUE),
                   obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] + 3 * total_err[obs_data$Year == cal_end],
                   col = grey(0.2,0.03), border = "black", lwd = 0.5, lty = 3)
           }
         } # plot obs
 
-        leg_y <- 0.9 * max( ice_data[ , paste0("y", yy) ])
+        leg_y <- 0.9 * max( ice_data[ , paste0("y", yy) ], na.rm = TRUE)
 
         for (scen in scenario_list) {
           if ( length(ice_data[ ice_data$scenario == scen, paste0("y", yy) ]) > 0 ) {
             points( plot_temps[ice_data$scenario == scen],
                     ice_data[ ice_data$scenario == scen, paste0("y", yy) ],
                     pch = 20, cex = 0.8, col = AR6_rgb[[scen]] )
-            text( min(plot_temps), leg_y,
+            text( min(plot_temps, na.rm = TRUE), leg_y,
                   scen, pos = 4, col = AR6_rgb[[scen]] )
             leg_y <- leg_y - 0.1 * leg_y
           }
@@ -226,14 +226,14 @@ plot_designs <- function(data_type, plot_level = 0) {
             # Overplot continuous inputs in scenario colours
             if (! is.character(ice_data[ 1, pp ])){
 
-              leg_y <- 0.9 * max(ice_data[ , paste0("y", yy) ])
+              leg_y <- 0.9 * max(ice_data[ , paste0("y", yy) ], na.rm = TRUE)
 
               for (scen in scenario_list) {
                 if ( length(ice_data[ ice_data$scenario == scen, paste0("y", yy) ]) > 0 ) {
                   points( param_plot[ice_data$scenario == scen],
                           ice_data[ ice_data$scenario == scen, paste0("y", yy) ],
                           pch = 20, col = AR6_rgb[[scen]], cex = 0.8 )
-                  text( min(param_plot), leg_y, scen_name[[scen]], pos = 4, col = AR6_rgb[[scen]] )
+                  text( min(param_plot, na.rm = TRUE), leg_y, scen_name[[scen]], pos = 4, col = AR6_rgb[[scen]] )
                   leg_y <- leg_y - 0.1 * leg_y
                 }
               }
@@ -242,15 +242,15 @@ plot_designs <- function(data_type, plot_level = 0) {
               if (yy == cal_end) {
                 abline( h = obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"],
                         col = grey(0.2, 0.4), lwd = 1.6)
-                rect( min(param_plot),
+                rect( min(param_plot, na.rm = TRUE),
                       obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] - 3 * obs_data[obs_data$Year == cal_end,"SLE_sd"],
-                      max(param_plot),
+                      max(param_plot, na.rm = TRUE),
                       obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] + 3 * obs_data[obs_data$Year == cal_end,"SLE_sd"],
                       col = grey(0.2,0.04), border = "black", lwd = 0.5, lty = 5)
                 if (plot_level > 2) {
-                  rect( min(param_plot),
+                  rect( min(param_plot, na.rm = TRUE),
                         obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] - 3 * total_err[obs_data$Year == cal_end],
-                        max(param_plot),
+                        max(param_plot, na.rm = TRUE),
                         obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] + 3 * total_err[obs_data$Year == cal_end],
                         col = grey(0.2,0.03), border = "black", lwd = 0.5, lty = 3)
                 }
@@ -275,7 +275,7 @@ plot_designs <- function(data_type, plot_level = 0) {
                 main = paste0("Sea level contribution at ",yy," vs ", pp), xlab = pp,
                 ylab = paste("Sea level contribution at",yy,"(cm SLE)") )
 
-          leg_y <- 0.9 * max( ice_data[ , paste0("y", yy) ])
+          leg_y <- 0.9 * max( ice_data[ , paste0("y", yy) ], na.rm = TRUE)
 
           for (scen in scenario_list) {
             if ( length(ice_data[ ice_data$scenario == scen, paste0("y", yy) ]) > 0 ) {
@@ -283,7 +283,7 @@ plot_designs <- function(data_type, plot_level = 0) {
               points( unlist(ice_design[,pp])[ ice_data$scenario == scen ],
                       ice_data[ ice_data$scenario == scen, paste0("y", yy) ],
                       pch = 20, cex = 0.8, col = AR6_rgb[[scen]] )
-              text( min(unlist(ice_design[,pp])), leg_y, cex = 0.7,
+              text( min(unlist(ice_design[,pp]), na.rm = TRUE), leg_y, cex = 0.7,
                     scen, pos = 4, col = AR6_rgb[[scen]] )
               leg_y <- leg_y - 0.1 * leg_y
             }
@@ -335,11 +335,11 @@ plot_designs <- function(data_type, plot_level = 0) {
       for (scen in scenario_list) {
 
         # Colour scale: using full range of projections (assumes max is positive)
-        if ( min(myem[[scen]]$mean) < 0 ) {
-          min_breaks <- 1.1*min(myem[[scen]]$mean)
-        } else min_breaks <- 0.9*min(myem[[scen]]$mean)
+        if ( min(myem[[scen]]$mean, na.rm = TRUE) < 0 ) {
+          min_breaks <- 1.1*min(myem[[scen]]$mean, na.rm = TRUE)
+        } else min_breaks <- 0.9*min(myem[[scen]]$mean, na.rm = TRUE)
         breaks_SLE <- seq( from = min_breaks,
-                           to = 1.1*max(myem[[scen]]$mean ),
+                           to = 1.1*max(myem[[scen]]$mean, na.rm = TRUE),
                            length = 20 )
         colrng_SLE <- hcl.colors(length(breaks_SLE) - 1, palette = "Blues")
 

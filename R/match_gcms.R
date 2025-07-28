@@ -77,7 +77,7 @@ match_gcms <- function(ice_data, temps_dataset, mean_impute = FALSE) {
   df_miss <- unique( temps[is.na(temps[ , 2 + length(temps_list)]),] )
   if (dim(df_miss)[1] > 0) {
     cat(paste("\nCould not find part/all of", dim(df_miss)[1],"forcings for", dim(temps[is.na(temps[ , 2 + length(temps_list)]),])[1],
-              "simulations (will be skipped or, for Greenland, may use fixed climate post-2100):\n\n"), file = logfile_build, append = TRUE)
+              "simulations (will be skipped, or forcings may be reconstructed below (e.g. fixed climate, or imputed):\n\n"), file = logfile_build, append = TRUE)
     cat(paste(df_miss[ ,"scenario"], df_miss[ ,"GCM"], "\n"), "\n", file = logfile_build, append = TRUE)
   }
 

@@ -1,0 +1,273 @@
+_____________________________________
+LAND ICE SOURCE: Central Europe RGI11 
+
+Ensemble subset: PPE 
+MODELS: GloGEM, OGGM 
+
+Date range of simulations to be used: 1980 - 2100 
+
+Emulator type: statGP
+Emulator covariance: pow_exp_20
+Validation type: tvt
+_____________________________________
+get_glacier_cap: glacier region estimate is 0.3 ± 0.1 mm SLE
+
+Predicting annually from 2000 to 2030 then every 5 years to 2100 
+with respect to year 2000 
+Timeslices: 42 
+Validation years: 2020,2050,2100,2150,2200,2300 
+
+EMULATOR INPUTS:
+GSAT baseline first year: 2015 
+GSAT final year(s): 2100,2300 
+GSAT timeslice(s) extend beyond ice model simulation: adjusting
+New GSAT input timeslice(s): 2100 
+GSAT period: 30 years
+
+Continuous inputs: prec_corr_factor ddf_ice ratio_ddf_ice_to_snow prec_gradient temp_melt temp_bias glen_a 
+Factors: ensemble model 
+
+load_obs: reading observations file
+ /Library/Frameworks/R.framework/Versions/4.5-arm64/Resources/library/emulandice2/extdata//GLA/Hugonnet/time_varying_glacier_areas/dh_11_rgi60_reg_cumul.csv
+_____________________________________
+load_sims: reading climate simulation data
+
+load_sims: read file /Library/Frameworks/R.framework/Versions/4.5-arm64/Resources/library/emulandice2/extdata//GSAT/CLIMATE_FORCING_250119.csv 
+_____________________________________
+
+_____________________________________
+impute_climate: fill missing 2100 and 2300
+
+Imputing 6 GCM simulations in data file by setting 2100 to 2099 value:
+SSP119 CAMS-CSM1-0 
+ SSP126 CAMS-CSM1-0 
+ SSP245 CAMS-CSM1-0 
+ SSP370 CAMS-CSM1-0 
+ SSP585 CAMS-CSM1-0 
+ SSP585 CESM2-Leo 
+ 
+Imputing 3 GCM simulations in data file by setting 2300 to 2299 value:
+SSP126 CESM2-WACCM 
+ SSP534-over CESM2-WACCM 
+ SSP585 CESM2-WACCM 
+ 
+
+_____________________________________
+calc_temps: calculating temperature change(s) for all forcings in dataset
+
+Calculating GSAT mean for baseline period: 2015-2044 
+Calculating GSAT mean for future period: 2071-2100 
+
+
+calc_temps: returning temperature change(s)
+_____________________________________
+
+_____________________________________
+load_sims: reading ice simulation data
+
+load_sims: read file /Library/Frameworks/R.framework/Versions/4.5-arm64/Resources/library/emulandice2/extdata//GLA/GLA_SIMULATIONS_RGI11_mm_SLE_2014_250723.csv 
+_____________________________________
+
+Deduced ice model inputs from CSV header:
+model scenario GCM ddf_ice ratio_ddf_ice_to_snow prec_corr_factor prec_gradient temp_bias temp_melt glen_a ice_albedo temp_sens psi_constant trans t_tip t_phase complete ensemble 
+
+_____________________________________
+select_sims: selecting simulations from ice data file - main
+
+Number of ice simulations in file: 3218
+
+Number of ice simulations in file for GLA RGI11: 3218
+After selecting model(s) GloGEM OGGM: 3218
+After checking simulations reach 2100: 3218
+
+After restricting to >= 80% complete glaciers (where known): 3095
+
+select_sims: SELECTED 3095 ICE SIMULATIONS FOR GLA RGI11 
+_____________________________________
+
+_____________________________________
+calculate_sle_anom: calculate SLE anomalies and standardise units
+_____________________________________
+
+_____________________________________
+match_gcms: matching ice model simulations with forcing simulations
+
+Found 64 complete forcings for 6 scenarios for 3095 simulations:
+
+SSP119 GFDL-ESM4 
+SSP119 CAMS-CSM1-0 
+SSP119 EC-Earth3-Veg 
+SSP119 MRI-ESM2-0 
+SSP126 EC-Earth3 
+SSP126 INM-CM5-0 
+SSP126 INM-CM4-8 
+SSP126 CESM2 
+SSP126 NorESM2-MM 
+SSP126 CAMS-CSM1-0 
+SSP126 CESM2-WACCM 
+SSP126 MPI-ESM1-2-HR 
+SSP126 FGOALS-f3-L 
+SSP126 BCC-CSM2-MR 
+SSP126 GFDL-ESM4 
+SSP126 MRI-ESM2-0 
+SSP126 IPSL-CM6A-LR 
+SSP126 EC-Earth3-Veg 
+SSP245 BCC-CSM2-MR 
+SSP245 FGOALS-f3-L 
+SSP245 MRI-ESM2-0 
+SSP245 MPI-ESM1-2-HR 
+SSP245 CESM2-WACCM 
+SSP245 CAMS-CSM1-0 
+SSP245 NorESM2-MM 
+SSP245 EC-Earth3 
+SSP245 EC-Earth3-Veg 
+SSP245 CMCC-CM2-SR5 
+SSP245 INM-CM4-8 
+SSP245 INM-CM5-0 
+SSP245 CESM2 
+SSP245 GFDL-ESM4 
+SSP370 FGOALS-f3-L 
+SSP370 BCC-CSM2-MR 
+SSP370 GFDL-ESM4 
+SSP370 MPI-ESM1-2-HR 
+SSP370 NorESM2-MM 
+SSP370 CAMS-CSM1-0 
+SSP370 CESM2-WACCM 
+SSP370 CESM2 
+SSP370 INM-CM5-0 
+SSP370 INM-CM4-8 
+SSP370 EC-Earth3-Veg 
+SSP370 EC-Earth3 
+SSP370 MRI-ESM2-0 
+SSP534-over CESM2-WACCM 
+SSP534-over IPSL-CM6A-LR 
+SSP534-over MRI-ESM2-0 
+SSP585 NorESM2-MM 
+SSP585 CAMS-CSM1-0 
+SSP585 EC-Earth3 
+SSP585 EC-Earth3-Veg 
+SSP585 CMCC-CM2-SR5 
+SSP585 INM-CM5-0 
+SSP585 INM-CM4-8 
+SSP585 CESM2 
+SSP585 TaiESM1 
+SSP585 BCC-CSM2-MR 
+SSP585 GFDL-ESM4 
+SSP585 FGOALS-f3-L 
+SSP585 MRI-ESM2-0 
+SSP585 MPI-ESM1-2-HR 
+SSP585 CESM2-WACCM 
+SSP585 IPSL-CM6A-LR 
+
+match_gcms: found 3095 of 3095 forcing simulations
+_____________________________________
+
+FINAL DATA SELECTION: using 3095 ice simulations for GLA RGI11 
+
+Of which: 
+GloGEM: 456 
+OGGM: 2639 
+
+Using these 64 full forcings:
+SSP119 GFDL-ESM4 
+SSP119 CAMS-CSM1-0 
+SSP119 EC-Earth3-Veg 
+SSP119 MRI-ESM2-0 
+SSP126 EC-Earth3 
+SSP126 INM-CM5-0 
+SSP126 INM-CM4-8 
+SSP126 CESM2 
+SSP126 NorESM2-MM 
+SSP126 CAMS-CSM1-0 
+SSP126 CESM2-WACCM 
+SSP126 MPI-ESM1-2-HR 
+SSP126 FGOALS-f3-L 
+SSP126 BCC-CSM2-MR 
+SSP126 GFDL-ESM4 
+SSP126 MRI-ESM2-0 
+SSP126 IPSL-CM6A-LR 
+SSP126 EC-Earth3-Veg 
+SSP245 BCC-CSM2-MR 
+SSP245 FGOALS-f3-L 
+SSP245 MRI-ESM2-0 
+SSP245 MPI-ESM1-2-HR 
+SSP245 CESM2-WACCM 
+SSP245 CAMS-CSM1-0 
+SSP245 NorESM2-MM 
+SSP245 EC-Earth3 
+SSP245 EC-Earth3-Veg 
+SSP245 CMCC-CM2-SR5 
+SSP245 INM-CM4-8 
+SSP245 INM-CM5-0 
+SSP245 CESM2 
+SSP245 GFDL-ESM4 
+SSP370 FGOALS-f3-L 
+SSP370 BCC-CSM2-MR 
+SSP370 GFDL-ESM4 
+SSP370 MPI-ESM1-2-HR 
+SSP370 NorESM2-MM 
+SSP370 CAMS-CSM1-0 
+SSP370 CESM2-WACCM 
+SSP370 CESM2 
+SSP370 INM-CM5-0 
+SSP370 INM-CM4-8 
+SSP370 EC-Earth3-Veg 
+SSP370 EC-Earth3 
+SSP370 MRI-ESM2-0 
+SSP534-over CESM2-WACCM 
+SSP534-over IPSL-CM6A-LR 
+SSP534-over MRI-ESM2-0 
+SSP585 NorESM2-MM 
+SSP585 CAMS-CSM1-0 
+SSP585 EC-Earth3 
+SSP585 EC-Earth3-Veg 
+SSP585 CMCC-CM2-SR5 
+SSP585 INM-CM5-0 
+SSP585 INM-CM4-8 
+SSP585 CESM2 
+SSP585 TaiESM1 
+SSP585 BCC-CSM2-MR 
+SSP585 GFDL-ESM4 
+SSP585 FGOALS-f3-L 
+SSP585 MRI-ESM2-0 
+SSP585 MPI-ESM1-2-HR 
+SSP585 CESM2-WACCM 
+SSP585 IPSL-CM6A-LR 
+
+Keeping climate timeseries (should match number of forcings above): 64 
+Factor to add: ensemble 
+Levels: 2 
+Adding dummy variables with reference value: forcing 
+Generating column ensemble:parameter
+Factor to add: model 
+Levels: 2 
+Adding dummy variables with reference value: GloGEM 
+Generating column model:OGGM
+
+Original ranges of inputs:
+GSAT_2100 -0.155366850333333 to 3.721209716 
+prec_corr_factor 1.006 to 5.15638288329474 
+ddf_ice 3.25209829458274 to 8.9995 
+ratio_ddf_ice_to_snow 0.4009 to 1 
+prec_gradient 0 to 2.977 
+temp_melt -3.98815481170365 to 1.98546760382312 
+temp_bias -1.97815617357456 to 3.01311110682109 
+glen_a 1.21819509605997e-24 to 3.00908209978004e-23 
+ensemble:parameter 0 to 1 
+model:OGGM 0 to 1 
+
+Centre and scale continuous inputs (mean = 0, s.d. = 1)
+
+New ranges of inputs after scaling:
+GSAT_2100 -1.36958461559421 to 1.66900932162337 
+prec_corr_factor -1.45253398036723 to 2.44725136093297 
+ddf_ice -1.76595333679006 to 2.76058543423578 
+ratio_ddf_ice_to_snow -3.53037745425884 to 0.398451598711749 
+prec_gradient -0.381882942188728 to 4.10685169114563 
+temp_melt -1.89751645566216 to 1.79650094081942 
+temp_bias -1.9615376270442 to 1.85112322474242 
+glen_a -1.01531758012394 to 2.95903017053342 
+ensemble:parameter 0 to 1 
+model:OGGM 0 to 1 
+
+Plot simulator projections

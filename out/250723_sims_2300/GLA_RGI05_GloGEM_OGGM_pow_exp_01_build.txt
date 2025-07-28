@@ -1,0 +1,158 @@
+_____________________________________
+LAND ICE SOURCE: Greenland RGI05 
+
+Ensemble subset: PPE 
+MODELS: GloGEM, OGGM 
+
+Date range of simulations to be used: 1980 - 2300 
+
+Emulator type: statGP
+Emulator covariance: pow_exp_01
+Validation type: tvt
+_____________________________________
+get_glacier_cap: glacier region estimate is 33.6 ± 8.7 mm SLE
+
+Predicting annually from 2000 to 2030 then every 5 years to 2300 
+with respect to year 2000 
+Timeslices: 82 
+Validation years: 2020,2050,2100,2150,2200,2300 
+
+EMULATOR INPUTS:
+GSAT baseline first year: 2015 
+GSAT final year(s): 2100,2300 
+GSAT period: 30 years
+
+Continuous inputs: prec_corr_factor ddf_ice ratio_ddf_ice_to_snow prec_gradient temp_melt temp_bias glen_a 
+Factors: model 
+
+load_obs: reading observations file
+ /Library/Frameworks/R.framework/Versions/4.5-arm64/Resources/library/emulandice2/extdata//GLA/Hugonnet/time_varying_glacier_areas/dh_05_rgi60_reg_cumul.csv
+_____________________________________
+load_sims: reading climate simulation data
+
+load_sims: read file /Library/Frameworks/R.framework/Versions/4.5-arm64/Resources/library/emulandice2/extdata//GSAT/CLIMATE_FORCING_250119.csv 
+_____________________________________
+
+_____________________________________
+impute_climate: fill missing 2100 and 2300
+
+Imputing 6 GCM simulations in data file by setting 2100 to 2099 value:
+SSP119 CAMS-CSM1-0 
+ SSP126 CAMS-CSM1-0 
+ SSP245 CAMS-CSM1-0 
+ SSP370 CAMS-CSM1-0 
+ SSP585 CAMS-CSM1-0 
+ SSP585 CESM2-Leo 
+ 
+Imputing 3 GCM simulations in data file by setting 2300 to 2299 value:
+SSP126 CESM2-WACCM 
+ SSP534-over CESM2-WACCM 
+ SSP585 CESM2-WACCM 
+ 
+
+_____________________________________
+calc_temps: calculating temperature change(s) for all forcings in dataset
+
+Calculating GSAT mean for baseline period: 2015-2044 
+GSAT: future mean period 2071-2100 
+GSAT: future mean period 2271-2300 
+
+
+calc_temps: returning temperature change(s)
+_____________________________________
+
+_____________________________________
+load_sims: reading ice simulation data
+
+load_sims: read file /Library/Frameworks/R.framework/Versions/4.5-arm64/Resources/library/emulandice2/extdata//GLA/GLA_SIMULATIONS_RGI05_mm_SLE_2014_250723.csv 
+_____________________________________
+
+Deduced ice model inputs from CSV header:
+model scenario GCM ddf_ice ratio_ddf_ice_to_snow prec_corr_factor prec_gradient temp_bias temp_melt glen_a ice_albedo temp_sens psi_constant trans t_tip t_phase complete ensemble 
+
+_____________________________________
+select_sims: selecting simulations from ice data file - main
+
+Number of ice simulations in file: 3179
+
+Number of ice simulations in file for GLA RGI05: 3179
+After selecting model(s) GloGEM OGGM: 3179
+After checking simulations reach 2300: 3069
+
+After restricting to >= 80% complete glaciers (where known): 2834
+
+select_sims: SELECTED 2834 ICE SIMULATIONS FOR GLA RGI05 
+_____________________________________
+
+_____________________________________
+calculate_sle_anom: calculate SLE anomalies and standardise units
+_____________________________________
+
+_____________________________________
+match_gcms: matching ice model simulations with forcing simulations
+
+Found 9 complete forcings for 3 scenarios for 2834 simulations:
+
+SSP126 CESM2-WACCM 
+SSP126 IPSL-CM6A-LR 
+SSP126 MRI-ESM2-0 
+SSP534-over CESM2-WACCM 
+SSP534-over IPSL-CM6A-LR 
+SSP534-over MRI-ESM2-0 
+SSP585 CESM2-WACCM 
+SSP585 IPSL-CM6A-LR 
+SSP585 MRI-ESM2-0 
+
+match_gcms: found 2834 of 2834 forcing simulations
+_____________________________________
+
+FINAL DATA SELECTION: using 2834 ice simulations for GLA RGI05 
+
+Of which: 
+GloGEM: 400 
+OGGM: 2434 
+
+Using these 9 full forcings:
+SSP126 CESM2-WACCM 
+SSP126 IPSL-CM6A-LR 
+SSP126 MRI-ESM2-0 
+SSP534-over CESM2-WACCM 
+SSP534-over IPSL-CM6A-LR 
+SSP534-over MRI-ESM2-0 
+SSP585 CESM2-WACCM 
+SSP585 IPSL-CM6A-LR 
+SSP585 MRI-ESM2-0 
+
+Keeping climate timeseries (should match number of forcings above): 9 
+Factor to add: model 
+Levels: 2 
+Adding dummy variables with reference value: GloGEM 
+Generating column model:OGGM
+
+Original ranges of inputs:
+GSAT_2100 0.298834411666667 to 3.721209716 
+GSAT_2300 -0.324666309 to 12.04253379 
+prec_corr_factor 1.006 to 7.2591629048783 
+ddf_ice 3.49053290107637 to 8.9995 
+ratio_ddf_ice_to_snow 0.4009 to 1 
+prec_gradient 0 to 2.977 
+temp_melt -3.98815481170365 to 1.98546760382312 
+temp_bias 0.691537951004232 to 5.68280523139988 
+glen_a 8.83459354627049e-25 to 2.182246290836e-23 
+model:OGGM 0 to 1 
+
+Centre and scale continuous inputs (mean = 0, s.d. = 1)
+
+New ranges of inputs after scaling:
+GSAT_2100 -1.02925399011086 to 1.61216058669219 
+GSAT_2300 -0.860865834923109 to 1.57907244214211 
+prec_corr_factor -1.56525553174233 to 2.46086086253421 
+ddf_ice -1.78134698247639 to 2.66161708969666 
+ratio_ddf_ice_to_snow -3.71838397232187 to 0.38699827338808 
+prec_gradient -0.370214155537961 to 4.0926363312323 
+temp_melt -1.82426997379073 to 1.8460570596423 
+temp_bias -1.78483729720406 to 1.82571124098697 
+glen_a -1.00942778547593 to 2.92982563527468 
+model:OGGM 0 to 1 
+
+Plot simulator projections
