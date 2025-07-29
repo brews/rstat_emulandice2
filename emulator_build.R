@@ -508,14 +508,11 @@ temps_list_names <- paste0("GSAT_", temps_list)
 
 if (i_s == "AIS") {
 
-  # (or add PD12 Kori GCM and look at PISM RCM doc)
-  # xxx Double-check heat_flux names translation from GCM to RCM ensembles
-
   ice_cont_list_model <- list()
   ice_factor_list_model <- list()
 
   # Kori: all
-  ice_cont_list_model[["Kori"]] <- c("heat_flux_PICO", "heat_flux_Plume", "heat_flux_Burgard",
+  ice_cont_list_model[["Kori"]] <- c("heat_flux_PICO", "heat_flux_Plume", "heat_flux_ISMIP6_local",
                                      "heat_flux_ISMIP6_nonlocal", "heat_flux_ISMIP6_nonlocal_slope")
   ice_factor_list_model[["Kori"]] <- c("melt_param")
 
@@ -568,8 +565,9 @@ if (i_s == "AIS") {
   ice_cont_list_model[["CISM"]] <- c( "resolution",
                                       "heat_flux_ISMIP6_nonlocal",
                                       "heat_flux_ISMIP6_nonlocal_slope")
-  # Local only varied for 2100 runs
-  # but these are imputed to 2150 if impute_sims = TRUE
+
+  # Local is only varied in CISM for runs to 2100
+  # but these are imputed to 2150 if impute_sims = "extend"
   if (final_year == "2100" || impute_sims == "extend") ice_cont_list_model[["CISM"]] <- c(ice_cont_list_model[["CISM"]],
                                                                                           "heat_flux_ISMIP6_local")
   ice_factor_list_model[["CISM"]] <- c("melt_param", "sliding_law")
@@ -1124,9 +1122,19 @@ climate_data_test <- apply(match_sims, 1, function(x) { # as in match_gcms()
 })
 
 # Ugh: convert list to numeric matrix...
-tmp <- matrix(0.0, nrow = dim(match_sims)[1], ncol = dim(climate_data)[2] - 2)
+tmp <- matrix(0.0, nrow = nrow(match_sims), ncol = ncol(climate_data) - 2)
+#print(dim(tmp))
+#print(nrow(match_sims))
+#print(ncol(climate_data))
+#print(length(climate_data_test))
+
 for ( cc in 1:length(climate_data_test)) {
+  if (nrow(climate_data_test[[cc]][, 3:dim(climate_data)[2]]) == 0 ) {
+    cat(paste("\nWaarning: cannot find forcing number",cc,"in CSV file:\n"),
+        file = logfile_build, append = TRUE)
+  } else {
   tmp[ cc, ] <- as.numeric(unlist(climate_data_test[[cc]][, 3:dim(climate_data)[2]]))
+  }
 }
 colnames(tmp) <- colnames(climate_data[ , 3:dim(climate_data)[2]])
 
