@@ -31,8 +31,8 @@ model_list=GloGEM_OGGM
 now=$(date +'%y%m%d')
 outdir="$results_dir"/"$now"_GLA_ALL_"$final_year"
 
-#for region in $(seq -f "%02g" 3 19) #  all regions
-for region in 17 # one region (must zero-pad)
+for region in $(seq -f "%02g" 1 19) #  all regions
+#for region in 09 # one region (must zero-pad)
 do
 
   echo
@@ -49,7 +49,7 @@ do
   fi
 
   # Over-write with tests
-  if [ "$region" == "03" -o "$region" == "09" -o "$region" == "17"]
+  if [ "$region" == "03" -o "$region" == "09" -o "$region" == "17" ]
   then
     covar="pow_exp_10"
   fi

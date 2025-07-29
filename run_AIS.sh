@@ -30,15 +30,16 @@ fi
 now=$(date +'%y%m%d')
 outdir="$results_dir"/"$now"_AIS_ALL_"$final_year"
 
-echo run AIS: build
-Rscript --vanilla -e "library(emulandice2)" -e "source('emulator_build.R')" AIS 0 $final_year
+#echo run AIS: build
+#Rscript --vanilla -e "library(emulandice2)" -e "source('emulator_build.R')" AIS 0 $final_year
 
 echo
 echo run AIS: predict
 
  if [ "$final_year" -gt 2200 ]
   then
-     build_file=AIS_ALL_Kori_PISM_BISICLES_IMAUICE_pow_exp_10_EMULATOR.RData
+     build_file=AIS_ALL_Kori_PISM_CISM_ElmerIce_BISICLES_IMAUICE_pow_exp_10_EMULATOR.RData
+#     build_file=AIS_ALL_Kori_PISM_BISICLES_IMAUICE_pow_exp_10_EMULATOR.RData
   fi
   if [ "$final_year" -le 2200 ]
   then

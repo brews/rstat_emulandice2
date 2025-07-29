@@ -229,8 +229,6 @@ if (i_s == "AIS") {
     if (deliverable_test) model_list <- c( "Kori", "PISM")
   } else model_list <- model_list_full
 
-  model_list <- model_list_full
-
 }
 
 if (i_s == "GIS") {

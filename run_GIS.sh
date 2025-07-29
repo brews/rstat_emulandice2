@@ -35,11 +35,11 @@ Rscript --vanilla -e "library(emulandice2)" -e "source('emulator_build.R')" GIS 
 echo
 #echo run GIS: predict
 
-if [ "$final_year" -gt 2150 ] # 2100
+if [ "$final_year" -gt 2100 ] # Why did I have this as 2150?
 then
   build_file=GIS_ALL_CISM_pow_exp_01_EMULATOR.RData
 fi
-if [ "$final_year" -le 2150 ] # == 2100
+if [ "$final_year" -le 2100 ] # Why did I have this as 2150?
 then
   build_file=GIS_ALL_CISM_IMAUICE_ElmerIce_GISM_pow_exp_01_EMULATOR.RData
 fi
