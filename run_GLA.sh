@@ -25,13 +25,14 @@ then
      exit 1
 fi
 
-model_list=GloGEM_OGGM_GO
+#model_list=GloGEM_OGGM_GO
+model_list=GloGEM_OGGM
 
 now=$(date +'%y%m%d')
 outdir="$results_dir"/"$now"_GLA_ALL_"$final_year"
 
-for region in $(seq -f "%02g" 1 19) #  all regions
-# for region in 09 # one region (must zero-pad)
+#for region in $(seq -f "%02g" 3 19) #  all regions
+for region in 17 # one region (must zero-pad)
 do
 
   echo
@@ -47,14 +48,20 @@ do
        covar="pow_exp_20"
   fi
 
+  # Over-write with tests
+  if [ "$region" == "03" -o "$region" == "09" -o "$region" == "17"]
+  then
+    covar="pow_exp_10"
+  fi
+
   # START PREDICTION
- # echo
-  #echo "run_GLA.sh: predict for region RGI: $region"
+  echo
+  echo "run_GLA.sh: predict for region RGI: $region"
 
   for ssp in "ssp119" "ssp126" "ssp245" "ssp370" "ssp585" "ssp534-over"
   do
 
- # echo "Scenario:" $ssp
+  echo "Scenario:" $ssp
 
   # IPCC AR6: FaIR 2LM
   gsat_file=twolayer_SSPs.h5
@@ -62,13 +69,13 @@ do
   # Victor test files: FaIR 3LM
   # gsat_file="$ssp".temperature.fair.temperature_climate.nc
 
-  #echo "GSAT file:" $gsat_file
+  echo "GSAT file:" $gsat_file
 
-  #./emulandice_steer.sh GLA RGI"$region" ./data-raw/GLA_RGI"$region"_"$model_list"_"$covar"_EMULATOR.RData "$gsat_dir"/"$gsat_file" $ssp ./out/GLA_RGI"$region"_"$ssp"_"$final_year"/ 2024 GLA_RGI"$region"_"$ssp"_"$final_year"
+  ./emulandice_steer.sh GLA RGI"$region" ./data-raw/GLA_RGI"$region"_"$model_list"_"$covar"_EMULATOR.RData "$gsat_dir"/"$gsat_file" $ssp ./out/GLA_RGI"$region"_"$ssp"_"$final_year"/ 2024 GLA_RGI"$region"_"$ssp"_"$final_year"
 
   done
 done
 
 # Won't move if predictions already exist
-#mkdir $outdir
-#mv "$emulandice_dir"/out/GLA* "$emulandice_dir"/data-raw/GLA*_EMULATOR.RData $outdir
+mkdir $outdir
+mv "$emulandice_dir"/out/GLA* "$emulandice_dir"/data-raw/GLA*_EMULATOR.RData $outdir

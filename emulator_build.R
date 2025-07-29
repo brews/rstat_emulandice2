@@ -46,8 +46,22 @@ if (length(args) == 0) {
 
 }
 
-# Get configuration file settings
-config_file <- system.file("config.yml", package = 'emulandice2', mustWork = TRUE)
+# Check ice source name
+stopifnot(i_s %in% c("GIS","AIS", "GLA"))
+
+# Region is set here
+
+# ICE SHEET SECTOR (when implemented xxx)
+if (i_s %in% c("GIS", "AIS")) {
+  reg <- "ALL"
+  stopifnot(reg %in% c("ALL")) # will add basins
+}
+
+# RGI NUMBER
+if (i_s == "GLA") reg <- paste0("RGI", sprintf("%02i", reg_num)) # zero-padded
+
+# Check region name is valid
+stopifnot(reg %in% c("ALL", paste0("RGI", sprintf("%02i",1:19))))
 
 # Fix random seed
 set.seed(2024)
@@ -65,42 +79,37 @@ if ( ! file.exists(outdir) ) dir.create(file.path(outdir))
 inputs_preprocess <- paste0(system.file("extdata", package = "emulandice2"), "/")
 inputs_ext <- inputs_preprocess
 
+# Get configuration file for ice source region
+config_filename <- paste0("config_",i_s,"_",reg,".yml")
+config_file <- system.file(config_filename,
+                           package = 'emulandice2', mustWork = TRUE)
+
 # Analysis choices ------------------------------------------------------------------------
 
 #' # Analysis choices
 #' ## Dataset, ice source, region [ensemble]
 
-# Check ice source name
-stopifnot(i_s %in% c("GIS","AIS", "GLA"))
-
 # Switch to go back to deliverable settings for testing
 deliverable_test <- config::get("deliverable_test", file = config_file)
 
 # Just read, filter and plot simulations (for testing etc)
-read_sims_only <- TRUE
+read_sims_only <- FALSE
 
 # Impute missing years in simulations: currently just AIS to 2150
 #impute_sims <- ifelse(i_s == "AIS" && final_year == "2150", TRUE, FALSE)
-impute_sims <- "extend"
+impute_sims <- "fill"
 stopifnot(impute_sims %in% c("none", "fill", "extend"))
 if (deliverable_test) impute_sims <- "none"
+
+# This is how far the imputation will extend a simulation (or not)
+# will only use the extend simulation if forcing exists (often doesn't)
+if (impute_sims == "none") impute_nyrs <- 0
+if (impute_sims == "fill") impute_nyrs <- 5  # restricted fill
+if (impute_sims == "extend") impute_nyrs <- 50 # extended
 
 # Later there are options to pick sub-ensembles (obsolete / not used?)
 ensemble_subset <- NA
 
-# Region is set here
-
-# CHOOSE ICE SHEET SECTOR (when implemented)
-if (i_s %in% c("GIS", "AIS")) {
-  reg <- "ALL"
-  stopifnot(reg %in% c("ALL")) # will add basins
-}
-
-# RGI NUMBER
-if (i_s == "GLA") reg <- paste0("RGI", sprintf("%02i", reg_num)) # zero-padded
-
-# Check region name is valid
-stopifnot(reg %in% c("ALL", paste0("RGI", sprintf("%02i",1:19))))
 
 # ENSEMBLE DATA
 # Main end dates of simulations in PROTECT ensembles
@@ -152,8 +161,10 @@ N_unif <- 2000L
 
 # Do LOO validation?
 validation_type <- config::get("validation_type", file = config_file)
-N_k <- NA # integer for every N_k-th simulation; NA for full LOO # xxx add switch by size?
 stopifnot(validation_type %in% c("tvt", "loo"))
+
+# Subsample for LOO
+N_k <- NA # integer for every N_k-th simulation; NA for full LOO # xxx add switch by size?
 
 # May as well switch on full LOO if GIS 2300 (quick)
 if (deliverable_test) {
@@ -171,6 +182,8 @@ print(paste(ice_name,"region",reg))
 if (validation_type == "loo") {
   print(paste("LOO with N_k =",N_k,"(could be very slow)"))
 }
+print(paste0("Config file: ./inst/", config_filename))
+
 #' ## Projection times and possible scenarios
 
 # SIMULATION YEARS in dataset i.e. columns in CSV
@@ -257,7 +270,8 @@ if (i_s == "GLA") {
   # Only OGGM and GO have completion % information, not GloGEM
   # Some regions only reach ~92% so can't go higher without adjusting
   # XXX Later change to 0.8 for GO Russian Arctic and AIS peripherals, 0.9 otherwise?
-  complete_thresh <- 0.80 # NA to not use
+  complete_thresh <- 0.95 # NA to not use
+  if (reg %in% c("RGI16", "RGI18")) complete_thresh <- 0.90
   if (deliverable_test) complete_thresh <- 0.80
 
 }
@@ -279,24 +293,13 @@ if (emulator_type == "deepgp") N_mcmc <- 100L
 
 if (emulator_type == "statGP") {
 
-  # Currently can choose AR6 settings (mostly linear), matern_5_2, matern_3_2,
+  # Can choose matern_5_2, matern_3_2,
   # or pow_exp (power-exponential with alpha = 0.1, 1.0, 1.9, 2.0)
+  # Could add
 
   # XXX Specify by ice sheet sector later if using
+  emulator_covar <- config::get("emulator_covar", file = config_file)
 
-  if ( i_s == "AIS") emulator_covar <- "pow_exp_10"
-
-  if ( i_s == "GIS") emulator_covar <- "pow_exp_01"
-
-  if ( i_s == "GLA") {
-
-    # Default: squared exponential (Gaussian: smooth)
-    emulator_covar <- "pow_exp_20"
-
-    # 3rd Jan 2024: Make some large regions more linear if still over-fitting
-    if (reg_num %in% c(1, 4, 5, 7, 19)) emulator_covar <- "pow_exp_01"
-
-  }
   stopifnot(emulator_covar %in% c("matern_5_2", "matern_3_2",
                                   "pow_exp_01", "pow_exp_10",
                                   "pow_exp_19", "pow_exp_20"))
@@ -336,8 +339,14 @@ logfile_build <- paste0(outdir, out_name,"_build.txt")
 cat("_____________________________________\n", file = logfile_build)
 
 cat(paste("LAND ICE SOURCE:", ice_name, reg, "\n"), file = logfile_build, append = TRUE)
+
+cat(paste0("\nConfig file: ./inst/", config_filename, "\n\n"), file = logfile_build, append = TRUE)
+
 if (deliverable_test) cat(paste("\nPROTECT deliverable settings\n"), file = logfile_build, append = TRUE)
-if (impute_sims != "none") cat(paste("Impute simulations:", impute_sims, "\n"), file = logfile_build, append = TRUE)
+if (impute_sims != "none") {
+  cat(paste("Impute missing data in simulations:", impute_sims, "\n"), file = logfile_build, append = TRUE)
+  cat(paste("including extension of timeseries by up to", impute_nyrs, "years\n"), file = logfile_build, append = TRUE)
+}
 cat( paste("\nEnsemble subset:", ensemble_subset,"\n"), file = logfile_build, append = TRUE)
 cat(paste( "MODELS:", paste(model_list, collapse = ", "), "\n"), file = logfile_build, append = TRUE)
 cat(paste("\nDate range of simulations to be used:",
@@ -1518,92 +1527,55 @@ if (plot_level > 0) {
 
 # Impute missing ---------------------------------------------------------------
 
-# for Jonty xxx
 
 if (impute_sims != "none") {
 
   # Impute data (take from end of calibration period ta avoid calibrating imputed)
-  cat( paste0("\nImpute simulations with SVD: ",impute_sims,"\n"),
+  cat( paste0("\nRequested impute simulations with SVD: ",impute_sims,"\n"),
        file = logfile_build, append = TRUE)
 
-  #ssp <- "SSP585"
+  # Use SVD to impute missing projection years within time series, and at end (up to impute_nyrs limit)
   years_proj <- years_em[years_em >= cal_end]
-
-  # xxx 25/7/24: think climate not used because entire scenarios often don't exist anyway?
-
-  #ssp_ind <- ice_data$scenario == ssp
-  #ice_data_scen <- ice_data[ ssp_ind, ]
-  #ice_data_proj <- ice_data[ ssp_ind, paste0("y", years_proj) ]
-  #ice_data_proj <- ice_data[ , paste0("y", years_proj) ]
-  #rownames(ice_data_proj) <- paste0("ice_",rownames(ice_data_proj))
-
-  # Full GSAT time series
-  #clim_scen <- climate_data[ climate_data$scenario == ssp, paste0("y", years_proj)]
-
-  # Cumulative sum of yearly differences (degree years)
-  #clim_scen <- t(apply(clim_scen, 1, diff))
-  #clim_scen <- cbind(0, clim_scen)
-  #colnames(clim_scen)[1] <- paste0("y",years_proj[1])
-  #clim_scen <- t(apply(clim_scen, 1, cumsum))
-  #rownames(clim_scen) <- paste("gcm", climate_data[ climate_data$scenario == ssp, "GCM"], sep = "_")
-
-  # Add GSAT timeseries
-  #  ice_data_proj <- rbind( ice_data_proj, clim_scen )
-  #  rownames(ice_data_proj)[ dim(ice_data_proj)[1] - dim(clim_scen)[1] + 1:(dim(clim_scen)[1]) ] <- rownames(clim_scen)
-
-# no longer needed? xxx
-  is.scalar <- function(x)
-    is.numeric(x) && length(x) == 1L && !is.na(x)
-
-  is.int <- function(x)
-    is.scalar(x) && x == round(x)
-
-  is.pos.int <- function(x)
-    is.int(x) && x > 0
-
-  # Use SVD to impute missing years within time series and at end (up to limit)
   ice_data_proj <- ice_data[ , paste0("y", years_proj) ]
-  ice_data_impute <- emulandice2::SVDimpute( as.matrix(ice_data_proj) )
+  num_miss <- is.na(ice_data_proj)
 
-  # To insert Jonty's code
-#  X <- t(ice_data_proj)
-#  year <- as.numeric(sub("^y", "", rownames(X)))
+  miss_sims <- apply(ice_data_proj, 1, function(x) {
+    ifelse( length(x[ is.na(x) ]) > 0, TRUE, FALSE)
+  })
 
-  # If imputed any values, plot
-  if ( ! identical(ice_data_proj, ice_data_impute) ) {
+  cat( paste("\nNumber of simulations with missing values:",
+             sum(miss_sims),"\n"), file = logfile_build, append = TRUE)
+  cat( paste("\nImputing",sum(num_miss),"simulation values\n"), file = logfile_build, append = TRUE)
+
+  if (sum(num_miss) > 0) {
+
+    ice_data_impute <- emulandice2::SVDimpute( as.matrix(ice_data_proj) )
 
     pdf( file = paste0( outdir, out_name, "_impute.pdf"),
          width = 9, height = 5)
 
     # All data
-    matplot(years_proj, t(ice_data_impute), type = "n", col = grey(0.1, 0.1),
-            lty=1, xlab = "Year", ylab = "Sea level contribution (cm SLE)", main = i_s)
+    matplot(years_proj, t(ice_data_impute), type = "n",
+            col = grey(0.1, 0.1), lty = 1, xlab = "Year", ylab = "Sea level contribution (cm SLE)",
+            main = ice_name)
 
-    # Imputed values (where original were NA)
-    matlines(years_proj, t(ice_data_impute[ which(is.na(ice_data_proj), arr.ind=TRUE), ]),
+    # Imputed values (where original had NA)
+    matlines(years_proj, t(ice_data_impute[ miss_sims, ]),
              type = "l", col = "red", lty = 1, lwd = 0.5)
     # Simulated values
-    matlines(years_proj, t(ice_data_proj[ which(is.na(ice_data_proj), arr.ind=TRUE), ]),
+    matlines(years_proj, t(ice_data_proj[ miss_sims, ]),
              type = "l", col = "black", lty = 1, lwd = 0.5)
 
-    # Zoom into main sims imputed - missing values at 2105
-    # xxx not working - fix x and/or y values
-    #  matplot(seq(2020, 2150, by = 5), ice_data_impute[, which(is.na(ice_data_proj[ "y2105", ]), arr.ind=TRUE) ],
-    #          type = "l", col = "red",
-    #          lty=1, xlab = "Year", ylab = "Sea level contribution (cm SLE)", main = paste(i_s,"imputed from 2105") )
-    #  matlines(seq(2020, 2150, by = 5), ice_data_proj[, which(is.na(ice_data_proj[ "y2105", ]), arr.ind=TRUE)],
-    #           type = "l", col = "black", lty = 1)
     dev.off()
 
-  } # if imputed any
+    # Add historical years xxx change if imputing back too
+    ice_data_impute <- cbind(ice_data[ , paste0("y", years_em[years_em < cal_end])], ice_data_impute)
 
-  # Transpose to rows for simulations
-  #ice_data_impute <- t(ice_data_impute)
-
-  # Add historical years xxx change if imputing back too
-  ice_data_impute <- cbind(ice_data[ , paste0("y", years_em[years_em < cal_end])], ice_data_impute)
-
-
+    # if any missing
+  } else {
+    # else return original
+    ice_data_impute <- cbind(ice_data[ , paste0("y", years_em[years_em < cal_end])], ice_data_proj)
+  }
 }
 
 # Sims only for testing: stop here
