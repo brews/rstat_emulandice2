@@ -67,15 +67,11 @@ select_sims <- function(select_type) {
 
     } # BISICLES: FALSE
 
-    # Select runs that get to final expected year
-    end_year <- final_year
+    # Target year: end of simulation, or allow to be shorter if imputing
+    end_year <- final_year - impute_nyrs
 
-    # Unless imputing: keep shorter runs
-    if (impute_sims == "fill") end_year <- final_year - 5 # restricted impute: extend up to 5 years
-    if (impute_sims == "extend") end_year <- final_year - 50 # strong impute: extend up to 50 years
-
-    # Keep run if least one non-missing value in columns end_year to final_year columns
-    # (Just checks last year if not imputing)
+    # Keep simulations if least one non-missing value in columns end_year-final_year
+    # (If not imputing, just checks last year)
     last_cols <- ice_data[ , paste0("y", end_year:final_year) ]
 
     found_val <- apply(last_cols, 1, function(x) {
@@ -83,6 +79,7 @@ select_sims <- function(select_type) {
       })
 
     ice_data <- ice_data[ found_val, ]
+
     cat( paste0("After checking simulations have non-missing values up to (or beyond) ", end_year, ": ", nrow(ice_data),"\n"),
          file = logfile_build, append = TRUE)
 
