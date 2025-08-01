@@ -2,15 +2,15 @@
 #'
 #' @description
 #' Calculate sea level changes (cm SLE) relative to a baseline year.
-#' XXX This function will be obsolete if I standardise SLE file units and
-#' baselines.
+#'
+#' @param dataset Dataset to calculate: only acts on year value columns
 #'
 #' @returns `calculate_sle_anom()` returns ice_data with SL columns in
 #' corrected units and relative to baseline year.
 #'
 #' @export
 
-calculate_sle_anom <- function() {
+calculate_sle_anom <- function(data_conv) {
 
 #  stopifnot(dataset == "PROTECT")
 
@@ -20,19 +20,19 @@ calculate_sle_anom <- function() {
     cat("calculate_sle_anom: calculate SLE anomalies and standardise units\n",file = logfile_build, append = TRUE)
 
     # CALCULATE SEA LEVEL ANOMALIES w.r.t. calibration start date
-    ice_data[ , paste0("y",years_sim)] <- ice_data[ , paste0("y",years_sim)] - ice_data[ , paste0("y",cal_start) ]
+    data_conv[ , paste0("y",years_sim)] <- data_conv[ , paste0("y",years_sim)] - data_conv[ , paste0("y",cal_start) ]
 
     # Convert mm SLE volume (above flot for GloGEM; also OGGM?) to cm SLE for glaciers
-    if (i_s == "GLA") ice_data[ , paste0("y",years_sim)] <- ice_data[ , paste0("y",years_sim) ] / 10.0
+    if (i_s == "GLA") data_conv[ , paste0("y",years_sim)] <- data_conv[ , paste0("y",years_sim) ] / 10.0
 
     # Convert m SLE to cm SLE for ice sheets
     # Make CSVs consistent instead? xxx
-    if (i_s %in% c("GIS", "AIS")) ice_data[ , paste0("y",years_sim)] <- ice_data[ , paste0("y",years_sim) ] * 100.0
+    if (i_s %in% c("GIS", "AIS")) data_conv[ , paste0("y",years_sim)] <- data_conv[ , paste0("y",years_sim) ] * 100.0
 
 #  }
 
   cat("_____________________________________\n",file = logfile_build, append = TRUE)
 
-  return(ice_data)
+  return(data_conv)
 
 }

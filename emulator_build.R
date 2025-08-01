@@ -1006,7 +1006,7 @@ if (i_s == "GIS") {
 ice_data <- emulandice2::select_sims("main")
 
 # Calculate SLE change w.r.t. cal_start year, and tidy units
-ice_data <- emulandice2::calculate_sle_anom()
+ice_data <- emulandice2::calculate_sle_anom(ice_data)
 
 # Do second selection for glaciers using values of SLE change
 if (deliverable_test) {
