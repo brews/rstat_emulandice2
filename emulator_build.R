@@ -269,6 +269,7 @@ if (i_s == "GLA") {
   # Some regions only reach ~92% so can't go higher without adjusting
   # XXX Later change to 0.8 for GO Russian Arctic and AIS peripherals, 0.9 otherwise?
   complete_thresh <- 0.95 # NA to not use
+  if (reg == "RGI01") complete_thresh <- 0.80
   if (reg %in% c("RGI16", "RGI18")) complete_thresh <- 0.90
   if (deliverable_test) complete_thresh <- 0.80
 
