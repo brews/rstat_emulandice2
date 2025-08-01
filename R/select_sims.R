@@ -70,13 +70,21 @@ select_sims <- function(select_type) {
     # Target year: end of simulation, or allow to be shorter if imputing
     end_year <- final_year - impute_nyrs
 
-    # Keep simulations if least one non-missing value in columns end_year-final_year
-    # (If not imputing, just checks last year)
-    last_cols <- ice_data[ , paste0("y", end_year:final_year) ]
+    # (If not imputing, just check last year)
+    if ( impute_nyrs == 0 || impute_sims == "none" ) {
 
-    found_val <- apply(last_cols, 1, function(x) {
-      ifelse( length(x[ !is.na(x) ]) > 0, TRUE, FALSE)
+      last_col <- ice_data[ , paste0("y", final_year) ]
+      found_val <- ifelse( length(last_col[ !is.na(last_col) ]) > 0, TRUE, FALSE)
+
+    } else {
+
+      # Keep simulations if least one non-missing value in columns end_year-final_year
+      last_cols <- ice_data[ , paste0("y", end_year:final_year) ]
+
+      found_val <- apply(last_cols, 1, function(x) {
+        ifelse( length(x[ !is.na(x) ]) > 0, TRUE, FALSE)
       })
+    }
 
     ice_data <- ice_data[ found_val, ]
 
