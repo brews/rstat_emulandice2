@@ -372,7 +372,7 @@ if (i_s == "GLA") glacier_cap <- emulandice2::get_glacier_cap(reg)
 
 # Ice sheets: Otosaka et al. (2023) IMBIE is 1992-2020
 # Glaciers: Hugonnet et al. (2021) is 2000-2020
-if (i_s == "AIS") cal_end <- 2020
+if (i_s == "AIS") cal_end <- 2021
 if (i_s == "GIS") cal_end <- 2021 # xxx to 2023 when imbie3
 if (i_s == "GLA") cal_end <- 2020 # because OGGM fails if too early xxx obsolete?
 
@@ -387,7 +387,14 @@ if (deliverable_test) cal_end <- 2020
 
 # Antarctica
 if (i_s == "AIS") {
-  cal_start <- 2015 # BISICLES starts in 2007; IMAUICE in 2014
+
+  # Dates to use later
+  if ( final_year > 2150) { cal_start <- 1979
+  } else cal_start <- 2000 # CISM 1996; Elmer/ice 2000; BISICLES starts in 2007; IMAUICE in 2014
+
+  # XXX for now use start of IMAUICE
+  cal_start <- 2014
+
   if (deliverable_test) cal_start <- 2000
 }
 
