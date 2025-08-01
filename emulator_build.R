@@ -1743,7 +1743,12 @@ if (train_subset) {
 }
 
 print("Building emulator...")
-emu_mv <- emulandice2::make_emu( as.matrix(Xtrain), as.matrix(Ytrain) ) # uses same in do_loo() call below
+
+scree_thresh = 0.999 # default is usually enough
+if (i_s == "GIS" && final_year >= 2200) scree_thresh = 0.99999 # but more for GIS 2300
+
+emu_mv <- emulandice2::make_emu( as.matrix(Xtrain), as.matrix(Ytrain),
+                                 thresh = scree_thresh) # uses same in do_loo() call below
 
 save.image(file="~/PROTECT/emulandice2/make_emu.RData")
 

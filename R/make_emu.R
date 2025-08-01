@@ -14,7 +14,7 @@
 
 # Build emulator -----------------------------------------------------------------------
 
-make_emu <- function(designX, responseF, r = NULL, thresh = 0.99999) {
+make_emu <- function(designX, responseF, r = NULL, thresh = 0.999) {
 
   # ARGUMENTS WHEN CALLED:
   #    designX <- ice_design_scaled
