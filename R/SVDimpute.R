@@ -12,7 +12,7 @@
 #'
 #' @details
 #' `X` cannot have a whole row or a whole column of missing values. `NA`s in `X` are initially filled using row effects, after the columns of `X` have been standardized.
-#' 
+#'
 #' If `k` is not specified, the value of `k` is calculated from the SVD of filled `X` after it has been centered and scaled.  `k` is the smallest value for which the proportion of variation is at least `pmin`.
 #'
 #' @returns A matrix like `X` but with the `NA`s imputed, plus an attribute `k`, the rank.
@@ -66,7 +66,7 @@ SVDimpute <- function(X, k = NULL, pmin = 1 - 1E-4, maxit = 5,
   if (transpose) X <- t(X)
 
   na_mask <- is.na(X)
-  if (!any(na_mask)) return(X)
+  if (!any(na_mask)) return(if (transpose) t(X) else X)
   na_row <- apply(na_mask, 1L, all)
   na_col <- apply(na_mask, 2L, all)
   if (any(na_row) || any(na_col)) {
@@ -78,18 +78,18 @@ SVDimpute <- function(X, k = NULL, pmin = 1 - 1E-4, maxit = 5,
   Y <- X
   Y[] <- t(apply(Y, 1L, up_down))
 
-  ## rescale
+  ## rescale, no NAs now
 
-  xmn <- colMeans(Y, na.rm = TRUE)
+  xmn <- colMeans(Y)
   Y[] <- sweep(Y, 2L, xmn, "-")
-  xsd <- zapsmall(sqrt(colMeans(Y * Y, na.rm = TRUE)))
+  xsd <- zapsmall(sqrt(colMeans(Y * Y)))
   xsd <- ifelse(xsd == 0, 1, xsd)
-  Y[] <- sweep(Y, 2L, xsd, "/") # now standardized, still has NAs
+  Y[] <- sweep(Y, 2L, xsd, "/") # now standardized
 
   ## find k, check rank
 
-  decomp <- svd(Y, nu = 0, nv = 0) # no NAs in Y
-  d <- decomp$d^2
+  decomp <- svd(Y, nu = 0, nv = 0)
+  d <- zapsmall(decomp$d^2)
   r <- sum(d > 0)
   if (is.null(k)) {
     stopifnot(is.scalar(pmin), 0 < pmin, pmin < 1)
@@ -99,7 +99,7 @@ SVDimpute <- function(X, k = NULL, pmin = 1 - 1E-4, maxit = 5,
     stopifnot(is.posint(k))
   }
   if (k >= r) {
-    stop("\'k\' too large")
+    stop(sprintf("k (%i) not smaller than rank (%i)", k, r))
   }
 
   ## iterate row completion
@@ -118,7 +118,8 @@ SVDimpute <- function(X, k = NULL, pmin = 1 - 1E-4, maxit = 5,
       i <- rw$i
       for (j in rw$j) {
         coff <- qr.coef(qr(U[-i, , drop=FALSE]), Y[-i, j]) # k vector
-        Y[i, j] <- drop(crossprod(U[i, ], coff))
+        val <- drop(crossprod(U[i, ], coff))
+        if (!is.na(val)) Y[i, j] <- val
       }
     }
   }
