@@ -97,6 +97,8 @@ read_sims_only <- FALSE
 
 # Impute missing years in simulations: currently just AIS to 2150
 #impute_sims <- ifelse(i_s == "AIS" && final_year == "2150", TRUE, FALSE)
+# "none" will currently fail at SVD if missing value(s) in time series (GloGEM, BISICLES)
+# xxx add something to skip runs?
 impute_sims <- "fill"
 stopifnot(impute_sims %in% c("none", "fill", "extend"))
 if (deliverable_test) impute_sims <- "none"
@@ -854,10 +856,10 @@ if (i_s == "GLA") {
   if (reg == "RGI19") {
     sle_lim[[as.character(cal_end)]] <- c(-0.1, 1); sle_inc[[as.character(cal_end)]] <- 0.1
     sle_lim[["2050"]] <- c(-10, glacier_cap); sle_inc[["2050"]] <- 0.5
-    sle_lim[["2100"]] <- c(-20, 1.1*glacier_cap); sle_inc[["2100"]] <- 0.5
-    sle_lim[["2150"]] <- c(-25, 1.3*glacier_cap); sle_inc[["2150"]] <- 0.5
-    sle_lim[["2200"]] <- c(-35, 1.4*glacier_cap); sle_inc[["2200"]] <- 1
-    sle_lim[["2300"]] <- c(-50, 1.5*glacier_cap); sle_inc[["2300"]] <- 1
+    sle_lim[["2100"]] <- c(-10, 1.1*glacier_cap); sle_inc[["2100"]] <- 0.5
+    sle_lim[["2150"]] <- c(-10, 1.3*glacier_cap); sle_inc[["2150"]] <- 0.5
+    sle_lim[["2200"]] <- c(-10, 1.4*glacier_cap); sle_inc[["2200"]] <- 1
+    sle_lim[["2300"]] <- c(-10, 1.5*glacier_cap); sle_inc[["2300"]] <- 1
   }
 }
 
@@ -1541,6 +1543,7 @@ if (plot_level > 0) {
 
 # Impute missing ---------------------------------------------------------------
 
+save.image(file="~/PROTECT/emulandice2/sims.RData")
 
 if (impute_sims != "none") {
 
@@ -1550,6 +1553,7 @@ if (impute_sims != "none") {
 
   # Use SVD to impute missing projection years within time series, and at end (up to impute_nyrs limit)
   years_proj <- years_em[years_em >= cal_end]
+  #years_proj <- years_em
   ice_data_proj <- ice_data[ , paste0("y", years_proj) ]
   num_miss <- is.na(ice_data_proj)
 
@@ -1564,6 +1568,9 @@ if (impute_sims != "none") {
   if (sum(num_miss) > 0) {
 
     ice_data_impute <- emulandice2::SVDimpute( as.matrix(ice_data_proj) )
+    #ice_data_impute <- emulandice2::SVDimpute( as.matrix(ice_data_proj),
+    #                                           standardize = FALSE, diff = TRUE,
+    #                                           infill = "LM")
 
     pdf( file = paste0( outdir, out_name, "_impute.pdf"),
          width = 9, height = 5)
@@ -1582,6 +1589,7 @@ if (impute_sims != "none") {
 
     dev.off()
 
+
     # Add historical years xxx change if imputing back too
     ice_data_impute <- cbind(ice_data[ , paste0("y", years_em[years_em < cal_end])], ice_data_impute)
 
@@ -1589,11 +1597,18 @@ if (impute_sims != "none") {
   } else {
     # else return original
     ice_data_impute <- cbind(ice_data[ , paste0("y", years_em[years_em < cal_end])], ice_data_proj)
+    #ice_data_impute <- ice_data_proj
   }
 }
 
+# xxx temporary attempt at fix - to be able to impute back for AIS 2300 earlier
+# xxx need to do earlier (and not impute back) if keeping glacier history matching
+#ice_data <- emulandice2::calculate_sle_anom(ice_data) # xxx moved 31/7/25 # still got NAs!
+#ice_data_impute <- emulandice2::calculate_sle_anom(ice_data_impute) # years going wrong
+
+
 # Sims only for testing: stop here
-save.image(file="~/PROTECT/emulandice2/sims.RData")
+save.image(file="~/PROTECT/emulandice2/sims_impute.RData")
 if ( read_sims_only) stop("Stopping after reading and plotting simulations", call. = FALSE)
 
 # ________________----
