@@ -51,8 +51,8 @@ do_loo <- function(designX, responseF, year_list, N_k = NA) {
 
     # Fit emulator to all but that one simulation
     # 22/7/25: changed to be X and Y from emulator_build.R passed as arguments
-    emu_mv_loo <- try(make_emu( designX[ -ss, ], responseF[ -ss, paste0("y", years_em) ] ),
-                      thresh = scree_thresh)
+    emu_mv_loo <- try(make_emu( designX[ -ss, ], responseF[ -ss, paste0("y", years_em) ],
+                      thresh = scree_thresh ) )
 
     # Skip if failed
     # xxx This was for GIS CISM while trying to understand error
