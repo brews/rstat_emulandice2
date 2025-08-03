@@ -4,7 +4,10 @@
 \alias{calculate_sle_anom}
 \title{calculate_sle_anom: calculate sea level changes.}
 \usage{
-calculate_sle_anom()
+calculate_sle_anom(data_conv)
+}
+\arguments{
+\item{dataset}{Dataset to calculate: only acts on year value columns}
 }
 \value{
 `calculate_sle_anom()` returns ice_data with SL columns in
@@ -12,6 +15,4 @@ corrected units and relative to baseline year.
 }
 \description{
 Calculate sea level changes (cm SLE) relative to a baseline year.
-XXX This function will be obsolete if I standardise SLE file units and
-baselines.
 }

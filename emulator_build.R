@@ -284,7 +284,7 @@ stopifnot( length( setdiff(model_list, model_list_full )) == 0 )
 
 # Stationary (RobustGaSP) or deep Gaussian Process emulator
 emulator_type <- config::get("emulator_type", file = config_file)
-stopifnot(emulator_type %in% c("statGP", "laGP", "deepgp"))
+stopifnot(emulator_type %in% c("statGP", "laGP", "deepgp", "dgpsi"))
 
 N_mcmc <- NA
 if (emulator_type == "deepgp") N_mcmc <- 100L
@@ -309,10 +309,15 @@ if (emulator_type == "statGP") {
 if (emulator_type == "deepgp") {
 
   # Squared exponential ("gauss" in RobustGaSP) or Matern
-  # Matern smoothness is v=2.5 by default in deepgp, i.e. matern_5_2
+  # Matern smoothness is v=2.5 by default, i.e. matern_5_2
   emulator_covar <- "matern" # exp2"
   stopifnot(emulator_covar %in% c("exp2", "matern"))
 
+}
+
+if (emulator_type == "dgpsi") {
+  # sexp is default; alternative is matern2.5
+  emulator_covar <- config::get("emulator_covar", file = config_file)
 }
 
 # Set here because of conditionals in make_emu.R
@@ -766,7 +771,7 @@ if (emulator_type == "statGP") {
 }
 
 if (emulator_type == "deepgp") {
-  # Placeholder if I want to set matern smoothness later
+  # Placeholder if I want to set matern smoothness parameter later
 }
 
 # Plot: choices ------------------------------------------------------------

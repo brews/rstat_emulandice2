@@ -11,5 +11,5 @@ make_emu(designX, responseF, r = NULL, thresh = 0.999)
 }
 \description{
 Build emulators of principal components with RobustGaSP.
-Code originally by Jonty Rougier.
+Based on code by Jonty Rougier.
 }

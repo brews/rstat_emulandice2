@@ -11,8 +11,7 @@ do_calibration(distances)
 observations}
 }
 \value{
-`do_calibration()` returns index of NROY ensemble members if
-history matching or weights for each ensemble member if Bayesian calibration.
+`do_calibration()` returns weights for each ensemble member
 }
 \description{
 Use distance of each emulator prediction over the historical period from

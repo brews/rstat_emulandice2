@@ -1,10 +1,9 @@
 default:
-  emulator_type: "statGP"
+  emulator_type: "dgpsi"
   deliverable_test: FALSE
   validation_type: "tvt"
-  emulator_covar: "pow_exp_01"
-lagp:
-  emulator_type: "laGP"
+  emulator_covar: "sexp"
+
 
 
 

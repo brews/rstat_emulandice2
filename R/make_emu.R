@@ -6,6 +6,8 @@
 #'
 #' @returns `make_emu()` returns an emulator object to use.
 #'
+# #' @importFrom dgpsi predict
+#'
 #' @export
 
 
@@ -88,6 +90,17 @@ make_emu <- function(designX, responseF, r = NULL, thresh = 0.999) {
 
     if (emulator_type == "deepgp") {
       emu_pc <- deepgp::fit_one_layer( designX, U[, j], cov = emulator_covar, nmcmc = N_mcmc )
+    }
+
+    if (emulator_type == "dgpsi") {
+
+      # GP for now: 10x default initial nugget value; squared-exp
+      emu_pc <- dgpsi::gp( designX, U[, j], name = emulator_covar, nugget_est = TRUE, nugget = 0.1)
+
+      #DGP
+      #emu_pc <- dgpsi::dgp( designX, U[, j], name = emulator_covar, nugget_est = TRUE, nugget = 0.1)
+
+
     }
 
     # LaGP is structured differently to other GPs:
@@ -206,6 +219,15 @@ make_emu <- function(designX, responseF, r = NULL, thresh = 0.999) {
       })
     }
 
+    if (emulator_type == "dgpsi") {
+      EMU_pred <- lapply(EMU, function(emu) {
+
+        #requireNamespace("dgpsi", quietly = TRUE)
+        pred <- predict(emu, designXout, method = "mean_var")
+        list(mean = pred$results$mean, var = pred$results$var)
+      })
+    }
+
     if (emulator_type == "laGP") {
 
       # Loops over PCs to get length scales (if estimated)
@@ -288,8 +310,9 @@ make_emu <- function(designX, responseF, r = NULL, thresh = 0.999) {
 
     ## compute the sd similarly
     if (emulator_type == "statGP") sdu <- sapply(pplist, "[[", "sd") # m_out x r
-    # deepgp and laGP return sd^2 not sd:
-    if (emulator_type == "deepgp") sdu <- sqrt(sapply(pplist, "[[", "s2")) # XXX CHECK THESE
+    # The others return variance not s.d.: # XXX CHECK THESE
+    if (emulator_type == "deepgp") sdu <- sqrt(sapply(pplist, "[[", "s2"))
+    if (emulator_type == "dgpsi") sdu <- sqrt(sapply(pplist, "[[", "var"))
     if (emulator_type == "laGP") sdu <- sqrt(sapply(pplist, "[[", "var"))
 
     dim(sdu) <- c(m_out, r)
