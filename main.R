@@ -150,7 +150,7 @@ cat(sprintf("\nemulandice2: %s %s\n\n", i_s, reg), file = logfile_results)
 cat(sprintf("\nLoaded emulator file: %s\n", emu_file), file = logfile_results, append = TRUE)
 
 # Sample size for calibration prior distributions
-N_prior <- 500L # XXX For testing; later make this e.g.10000L
+N_prior <- 10000L # XXX was 500L for testing
 
 # Quantiles to output
 q_list <- c( 0.50, 0.05, 0.95, 0.17, 0.83, 0.25, 0.75 )
