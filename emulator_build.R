@@ -1772,7 +1772,11 @@ if (train_subset) {
 print("Building emulator...")
 
 scree_thresh = 0.999 # default is usually enough
-if (i_s == "GIS" && final_year >= 2200) scree_thresh = 0.99999 # but more for GIS 2300
+# More needed for GIS 2300
+if (i_s == "GIS" && final_year >= 2200) scree_thresh = 0.99999
+
+# Flag for whether we are coming from main.R or emulator_build.R
+is_build <- TRUE
 
 emu_mv <- emulandice2::make_emu( as.matrix(Xtrain), as.matrix(Ytrain),
                                  thresh = scree_thresh) # uses same in do_loo() call below
@@ -2068,7 +2072,7 @@ to_save <- c("climate_data", # CLIMATE MODEL SIMULATION DATA
              "input_cont_list", # List of emulated continuous inputs, i.e. c(temps_list_names, ice_cont_list)
              "emulator_type",
              "emu_mv", # EMULATOR! function object
-             "include_factors", # Are there any factors
+             "include_factors", "scree_thresh", # Are there any factors; scree tnreshold
              "years_em", "N_ts", # List and number of emulated years
              "inputs_centre", "inputs_scale", # Rescaling values for transforming params before/after emulation
              "first_year", "final_year", "cal_start", "cal_end", # Dates of data and calibration period
@@ -2104,6 +2108,13 @@ if (validation_type == "loo") {
 if ( validation_type == "tvt" ) {
   to_save <- c(to_save, "test_mean", "test_sd", "test_wrong", "test_set" )
 }
+
+# If saving dgpsi serialised emulator objects, don't save to RData file
+# xxx but not currently able to predict from main.R - keep code in case fixed later
+#if (emulator_type == "dgpsi") {
+#  to_save <- c(to_save, "Xtrain", "Ytrain") # save to re-call make_emu from main.R
+#  to_save <- to_save[to_save != "emu_mv"] # don't save emulator
+#}
 
 save(list = to_save, file = RData_file)
 

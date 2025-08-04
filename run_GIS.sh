@@ -33,11 +33,12 @@ echo run GIS: build
 Rscript --vanilla -e "library(emulandice2)" -e "source('emulator_build.R')" GIS 0 $final_year
 
 echo
-#echo run GIS: predict
+echo run GIS: predict
 
 if [ "$final_year" -gt 2100 ] # Why did I have this as 2150?
 then
-  build_file=GIS_ALL_CISM_pow_exp_01_EMULATOR.RData
+  #build_file=GIS_ALL_CISM_pow_exp_01_EMULATOR.RData # rgasp
+  build_file=GIS_ALL_CISM_sexp_EMULATOR.RData # For dgpsi: N.B. does not currently work in predict stage, only build stage
 fi
 if [ "$final_year" -le 2100 ] # Why did I have this as 2150?
 then

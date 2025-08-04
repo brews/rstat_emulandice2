@@ -27,6 +27,9 @@ cat("Hello! Welcome to emulandice2: predict\n")
 cat("_______________________________________\n")
 cat("Requested settings:\n")
 
+# Flag for build vs predict mode
+is_build <- FALSE
+
 # Get arguments from RScript command in emulandice_steer.sh
 args <- commandArgs(TRUE)
 if (length(args) == 0) {
@@ -113,6 +116,7 @@ cat("\nLoading emulator build file\n")
 stopifnot(file.exists(emu_file))
 load( file = emu_file)
 
+# xxx add something about pkl if keeping dgpsi
 
 #___________________________________________
 # RESET SOME SETTINGS FOR FACTS
@@ -217,6 +221,13 @@ fixed_temp_list <- names(design_fixed)
 
 
 cat("\nPredict:\n", file = logfile_results, append = TRUE)
+
+# Need to call make_emu again for dgpsi to read individual PC emulator files inside function
+# because can't store whole emulator function at once as in other packages
+# xxx Not currently working but keep code in case can use later
+#if (emulator_type == "dgpsi") {
+#  emu_mv <- emulandice2::make_emu( as.matrix(Xtrain), as.matrix(Ytrain), thresh = scree_thresh)
+#}
 
 # Reinitialise to delete the previous uniform and main effects projections
 # from emulator_build.R (reusing scenario-based plotting code)

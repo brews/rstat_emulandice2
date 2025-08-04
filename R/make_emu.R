@@ -6,8 +6,6 @@
 #'
 #' @returns `make_emu()` returns an emulator object to use.
 #'
-# #' @importFrom dgpsi predict
-#'
 #' @export
 
 
@@ -56,7 +54,7 @@ make_emu <- function(designX, responseF, r = NULL, thresh = 0.999) {
 
   cat(sprintf("make_emu: r = %i, scree = %.3f%%\n", r, 100 * scree[r]), file = logfile_build, append = TRUE)
 
-  ## build emulators, hide rgasp output
+  ## build emulators, hide output
   sink(file = emu_log_file)
 
   if ( emulator_type == "statGP") {
@@ -80,8 +78,6 @@ make_emu <- function(designX, responseF, r = NULL, thresh = 0.999) {
   # Emulator model for each principal component
   EMU <- lapply(1L:r, function(j) {
 
-#    cat(sprintf("\nTraining emulator for PC %i\n", j), file = emu_log_file, append = TRUE)
-
     if (emulator_type == "statGP") {
       emu_pc <- RobustGaSP::rgasp(design = designX, response = U[, j], trend = cbind(1, trendX),
                                   nugget.est = TRUE , lower_bound = lower_bound,
@@ -94,14 +90,45 @@ make_emu <- function(designX, responseF, r = NULL, thresh = 0.999) {
 
     if (emulator_type == "dgpsi") {
 
-      # GP for now: 10x default initial nugget value; squared-exp
-      emu_pc <- dgpsi::gp( designX, U[, j], name = emulator_covar, nugget_est = TRUE, nugget = 0.1)
+      if (is_build) {
 
-      #DGP
-      #emu_pc <- dgpsi::dgp( designX, U[, j], name = emulator_covar, nugget_est = TRUE, nugget = 0.1)
+        # GP: 10x default initial nugget value; squared-exp
+        emu_pc <- dgpsi::gp( designX, U[, j], name = emulator_covar, nugget_est = TRUE, nugget = 0.1)
 
+        # DGP
+        # emu_pc <- dgpsi::dgp( designX, U[, j], name = emulator_covar, nugget_est = TRUE, nugget = 0.1)
 
-    }
+        # xxx Commented out because predict stage not currently working
+        # dgpsi is based on Python so have to do things differently
+        # First serialize the dgpsi emulator object
+        #emu_pc_serialized <- dgpsi::serialize(emu_pc)
+
+        # Save emulator object separately
+        #emu_ser_file <- paste0(rdatadir, out_name, "_EMULATOR_PC",j,".pkl")
+        #dgpsi::write(emu_pc_serialized, emu_ser_file)
+
+      } else {
+
+        stop("Not currently possible to run in predict mode with dgpsi")
+
+        # A faff if coming from main.R for prediction,
+        # because underlying Python means emulator objects have to be written and read separately
+        #emu_ser_file <- paste0(dirname(emu_file), "/",
+        #                       tools::file_path_sans_ext(basename(emu_file)),
+        #                       "_PC",j,".pkl")
+
+        # XXX Currently a failure from dgpsi::read():
+        # Error in res[[paste("emulator", i, sep = "")]] : subscript out of bounds
+        #if (file.exists(emu_ser_file)) {
+        #  emu_ser <- dgpsi::read(emu_ser_file)
+        #  emu_pc <- dgpsi::deserialize(emu_ser)
+        #} else {
+        #  stop(paste0("Serialized dgpsi emulator PC file not found:", emu_ser_file))
+      }
+
+      emu_pc
+
+    } # dgpsi
 
     # LaGP is structured differently to other GPs:
     # Here we are just training on a random sample to estimate initial separable length scales
@@ -169,22 +196,22 @@ make_emu <- function(designX, responseF, r = NULL, thresh = 0.999) {
   }) # EMU: list of emulator models for each PC (or length scales from laGP)
 
 
-   if (laGP_scaling) {
+  if (laGP_scaling) {
 
-     # Quick plot of thetas (box plot for PCs xxx use scatter?)
-     if ( emulator_type == "laGP") {
+    # Quick plot of thetas (box plot for PCs xxx use scatter?)
+    if ( emulator_type == "laGP") {
 
-       pdf( file = paste0( outdir, out_name, "_lengthscales.pdf"),
-            width = 9, height = 5)
+      pdf( file = paste0( outdir, out_name, "_lengthscales.pdf"),
+           width = 9, height = 5)
 
-       thats <- matrix(NA, nrow = r, ncol = ncol(designX))
-       for (j in 1:r) thats[ j, ] <- EMU[[j]]
+      thats <- matrix(NA, nrow = r, ncol = ncol(designX))
+      for (j in 1:r) thats[ j, ] <- EMU[[j]]
 
-       boxplot( thats, main = paste0("Length scales (",r," PCs)"), xlab = "Emulator input",
-                ylab = "Length scale")
+      boxplot( thats, main = paste0("Length scales (",r," PCs)"), xlab = "Emulator input",
+               ylab = "Length scale")
 
-       dev.off()
-     }
+      dev.off()
+    }
   }
 
   #  sink()
@@ -220,13 +247,17 @@ make_emu <- function(designX, responseF, r = NULL, thresh = 0.999) {
     }
 
     if (emulator_type == "dgpsi") {
+
+      # Get emulators for PCs
       EMU_pred <- lapply(EMU, function(emu) {
 
-        #requireNamespace("dgpsi", quietly = TRUE)
-        pred <- predict(emu, designXout, method = "mean_var")
-        list(mean = pred$results$mean, var = pred$results$var)
+        # Use to predict PC
+        pred <- predict(emu, designXout)
+        list( mean = pred$results$mean, var = pred$results$var)
+
       })
-    }
+
+    } # dgpsi
 
     if (emulator_type == "laGP") {
 
@@ -287,11 +318,20 @@ make_emu <- function(designX, responseF, r = NULL, thresh = 0.999) {
       stopifnot(is.matrix(designXout), ncol(designXout) == d)
     }
     m_out <- nrow(designXout)
+
+    # predictions for r PCs
     pplist <- pred_EMU(designXout) # r-list
 
-    ## compute the time series (n years) of emulated mean values
-    # for each of the m_out simulations
-    # from the r individual PC means
+    # Output laGP estimated length scales and nuggets, e.g. for testing
+    if (emulator_type == "laGP") {
+      darg <- sapply(pplist, "[[", "d") # m_out x r
+      print(darg)
+      garg <- sapply(pplist, "[[", "g") # m_out x r
+      print(garg)
+    }
+
+    ## compute the time series (n time slices) of mean values
+    # for each of the m_out design points
     mu <- sapply(pplist, "[[", "mean") # m_out x r
     dim(mu) <- c(m_out, r)
     mx <- sweep(mu %*% Vt, 2L, cc, "+") # m_out x n
@@ -300,17 +340,8 @@ make_emu <- function(designX, responseF, r = NULL, thresh = 0.999) {
     if (type == "mean")
       return(list(mean = mx))
 
-    # Output estimated length scales and nuggets, e.g. for testing
-    if (emulator_type == "laGP") {
-      darg <- sapply(pplist, "[[", "d") # m_out x r
-      print(darg)
-      garg <- sapply(pplist, "[[", "g") # m_out x r
-      print(garg)
-    }
-
-    ## compute the sd similarly
+    ## compute the sd from the PCs similarly: note most packages output var not sd
     if (emulator_type == "statGP") sdu <- sapply(pplist, "[[", "sd") # m_out x r
-    # The others return variance not s.d.: # XXX CHECK THESE
     if (emulator_type == "deepgp") sdu <- sqrt(sapply(pplist, "[[", "s2"))
     if (emulator_type == "dgpsi") sdu <- sqrt(sapply(pplist, "[[", "var"))
     if (emulator_type == "laGP") sdu <- sqrt(sapply(pplist, "[[", "var"))
@@ -324,13 +355,14 @@ make_emu <- function(designX, responseF, r = NULL, thresh = 0.999) {
     # Can choose to return only the s.d.
     if (type == "sd") return(list(mean = mx, sd = sdx))
 
-    ## compute the variance - i.e. covariances between the n years
+    ## compute the variance - i.e. covariances between the n timeslices
+    # for each design point
     Sx <- lapply(1L:m_out, function(i) {
       as.vector(crossprod(sdu[i, ] * Vt)) # n*n vector
     })
     Sx <- do.call("cbind", Sx) # n*n x m_out
     dim(Sx) <- c(n, n, m_out)
-    Sx <- aperm(Sx, c(3, 1, 2))
+    Sx <- aperm(Sx, c(3, 1, 2))  # m_out x n*n
 
     # Default is to return mean, sd and var
     return(list(mean = mx, sd = sdx, var = Sx))

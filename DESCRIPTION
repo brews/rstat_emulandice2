@@ -14,7 +14,8 @@ Imports:
     mvtnorm,
     RobustGaSP,
     deepgp,
+    dgpsi,
     laGP,
     config,
     ncdf4
-RoxygenNote: 7.2.3
+RoxygenNote: 7.3.2
