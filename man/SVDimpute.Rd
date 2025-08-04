@@ -2,39 +2,61 @@
 % Please edit documentation in R/SVDimpute.R
 \name{SVDimpute}
 \alias{SVDimpute}
-\title{SVD Imputation Algorithm for Matrix Completion
-Code by Jonty Rougier}
+\title{SVD Imputation Algorithm for Matrix Completion}
 \usage{
-SVDimpute(X, k = NULL, pmin = 0.99, reltol = 0.001, maxit = 20)
+SVDimpute(X, k = NULL, pmin = 1 - 1e-04, maxit = 5)
 }
 \arguments{
-\item{X}{Numeric matrix containing missing values as `NA`.}
+\item{X}{numeric matrix containing missing values as `NA`.}
 
-\item{k}{Desired rank.}
+\item{k}{rank of approximation to `X`.}
 
-\item{pmin}{Minimum proportional variation, used to set `k` if `k = NULL`, see Details.}
+\item{pmin}{minimum proportional variation, used to set `k` if `k = NULL`, see Details.}
 
-\item{reltol}{Relative tolerance for exit condition, see Details.}
-
-\item{maxit}{Maximum number of iterations, see Details.}
+\item{maxit}{maximum number of iterations.}
 }
 \value{
-A matrix like `X` but with the `NA`s imputed, plus an attributes `k` and `niter`, the number of iterations.
+A matrix like `X` but with the `NA`s imputed, plus an attribute `"param"`, a list with `pmin`, `k`, and `rank` if `maxit > 0`.
 }
 \description{
-Replace `NA` values in matrix `X` with imputed values.  Order `X` with time or equivalent down the rows, because the imputation is done row by row.
+Replace `NA` values in matrix `X` with imputed values.  Imputation is along the rows, assuming that all columns of `X` have the same units.
 
-Although `k` can be specified directly, it is safer to set it indirectly using `pmin`.
+_The order of the columns matters!_ The initial infill is by a variant on Last Value Carried Forward (LVCF).  Therefore it is important that the columns follow a sequence.  If the columns represent points in a grid, then use [snake()] to reorder them before imputation.
 }
 \details{
-The algorithm exits if:
+This is a two-stage imputation.  Stage 1 is an initial infill of all `NA`s using a variant on LVCF.  If `X[i,j]` is `NA`, it is filled by `X[i,j-1] + diff(X[istar, c(j-1,j)])` where `istar` is the run with the closest value to `X[i,j-1]`.This is followed by a similar backward pass, and the function terminates with an error if there are `NA` remaining after both passes.
 
-1. There has been `maxit` iterations.
-2. The norm of the change in the imputed values starts to rise.
-3. The norm of the change in the imputed values falls below `reltol` times the norm of `X` (after scaling).
+Stage 2 (if `maxit > 0`) is a SVD imputation, similar to that described in Troyanskaya et al (2001), see References.  This is carried out after centering `X` (now with no `NA`s).  If `k` is not specified, it is the rank of the SVD approximation of `X` which achieves a proportion `pmin` of the variation of `X`.
+}
+\examples{
+## demo using diamondEOO
 
-If `k` is not specified, the value of `k` is calculated from the SVD of `X` after it has been centered and scaled and `NA` values have been imputed using row means.  `k` is the smallest value for which the proportion of variation is at least `pmin`.
+Y <- diamondEOO$Y
+mask <- is.na(Y)
+show(mean(mask)) # 6\% NAs where P < 0, at high values of V
+
+## LVCF only
+
+Y1 <- SVDimpute(Y, maxit = 0)
+show(summary(Y1[mask])) # all small
+all.equal(Y[!mask], Y1[!mask]) # TRUE
+
+## now with some SVD iterations
+
+Y1 <- SVDimpute(Y, maxit = 5) # the default
+show(summary(Y1[mask])) # all small
+
+## using snake()
+
+dim <- lengths(diamondEOO$grid)
+oo <- snake(dim)
+Y2oo <- SVDimpute(Y[, oo])
+Y2 <- Y2oo[, order(oo)]
+show(summary((Y1 - Y2)[mask])) # minor differences
 }
 \references{
 Olga Troyanskaya, Michael Cantor, Gavin Sherlock, Pat Brown, Trevor Hastie, Robert Tibshirani, David Botstein, Russ B. Altman, Missing value estimation methods for DNA microarrays, Bioinformatics, Volume 17, Issue 6, June 2001, Pages 520–525, <https://doi.org/10.1093/bioinformatics/17.6.520>.
+}
+\seealso{
+LVCF will give a poor initial fill for points on the upper edge of a grid.  If the columns of `X` represent points in a grid, then reorder them using the permutation from [snake()] before imputation.
 }

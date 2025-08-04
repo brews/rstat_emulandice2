@@ -1,0 +1,9 @@
+default:
+  emulator_type: "dgpsi"
+  deliverable_test: FALSE
+  validation_type: "tvt"
+  emulator_covar: "sexp"
+
+
+
+

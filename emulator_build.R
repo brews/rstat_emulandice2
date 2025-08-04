@@ -1548,7 +1548,7 @@ if (plot_level > 0) {
 
 # Impute missing ---------------------------------------------------------------
 
-save.image(file="~/PROTECT/emulandice2/sims.RData")
+#save.image(file="~/PROTECT/emulandice2/sims.RData")
 
 if (impute_sims != "none") {
 
@@ -1573,9 +1573,6 @@ if (impute_sims != "none") {
   if (sum(num_miss) > 0) {
 
     ice_data_impute <- emulandice2::SVDimpute( as.matrix(ice_data_proj) )
-    #ice_data_impute <- emulandice2::SVDimpute( as.matrix(ice_data_proj),
-    #                                           standardize = FALSE, diff = TRUE,
-    #                                           infill = "LM")
 
     pdf( file = paste0( outdir, out_name, "_impute.pdf"),
          width = 9, height = 5)
@@ -1613,7 +1610,7 @@ if (impute_sims != "none") {
 
 
 # Sims only for testing: stop here
-save.image(file="~/PROTECT/emulandice2/sims_impute.RData")
+#save.image(file="~/PROTECT/emulandice2/sims_impute.RData")
 if ( read_sims_only) stop("Stopping after reading and plotting simulations", call. = FALSE)
 
 # ________________----
@@ -1781,7 +1778,7 @@ is_build <- TRUE
 emu_mv <- emulandice2::make_emu( as.matrix(Xtrain), as.matrix(Ytrain),
                                  thresh = scree_thresh) # uses same in do_loo() call below
 
-save.image(file="~/PROTECT/emulandice2/make_emu.RData")
+#save.image(file="~/PROTECT/emulandice2/make_emu.RData")
 
 # ________________----
 # TEST ------------------------------------------------------------
@@ -1811,7 +1808,7 @@ for (input in names( design_sa )) {
   myem[[input]] <- emulandice2::emulator_predict( design_sa_scaled )
 }
 
-save.image(file="~/PROTECT/emulandice2/MEFF.RData")
+#save.image(file="~/PROTECT/emulandice2/MEFF.RData")
 
 #' ## Uniform temperature prior
 
@@ -1836,7 +1833,7 @@ for (scen in scenario_list) {
   myem[[scen]] <- emulandice2::emulator_predict( design_pred_scaled )
 }
 
-save.image(file="~/PROTECT/emulandice2/unif_temps.RData")
+#save.image(file="~/PROTECT/emulandice2/unif_temps.RData")
 
 
 # Sample emu uncertainty ----------------------------------------------------------------------
