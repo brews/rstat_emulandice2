@@ -1,20 +1,14 @@
 #' SVD Imputation Algorithm for Matrix Completion
 #'
 #' @description
-#' Replace `NA` values in matrix `X` with imputed values.  Imputation is along the rows, assuming that all columns of `X` have the same units.
-#'
-#' _The order of the columns matters!_ The initial infill is by a variant on Last Value Carried Forward (LVCF).  Therefore it is important that the columns follow a sequence.  If the columns represent points in a grid, then use [snake()] to reorder them before imputation.
+#' Replace `NA` values in matrix `X` with imputed values.  Imputation is along the rows, assuming that all columns of `X` have the same units.  The initial infill of the `NA`s is using Last Value Carried Forward (LVCF) after centering the columns.  If the columns represent points in a grid, then use [snake()] to reorder them before imputation.
 #'
 #' @param X numeric matrix containing missing values as `NA`.
 #' @param k rank of approximation to `X`.
 #' @param pmin minimum proportional variation, used to set `k` if `k = NULL`, see Details.
-#' @param maxit maximum number of iterations.
+#' @param maxit maxium number of iterations.
 #'
 #' @returns A matrix like `X` but with the `NA`s imputed, plus an attribute `"param"`, a list with `pmin`, `k`, and `rank` if `maxit > 0`.
-#'
-#' @details This is a two-stage imputation.  Stage 1 is an initial infill of all `NA`s using a variant on LVCF.  If `X[i,j]` is `NA`, it is filled by `X[i,j-1] + diff(X[istar, c(j-1,j)])` where `istar` is the run with the closest value to `X[i,j-1]`.This is followed by a similar backward pass, and the function terminates with an error if there are `NA` remaining after both passes.
-#'
-#' Stage 2 (if `maxit > 0`) is a SVD imputation, similar to that described in Troyanskaya et al (2001), see References.  This is carried out after centering `X` (now with no `NA`s).  If `k` is not specified, it is the rank of the SVD approximation of `X` which achieves a proportion `pmin` of the variation of `X`.
 #'
 #' @references Olga Troyanskaya, Michael Cantor, Gavin Sherlock, Pat Brown, Trevor Hastie, Robert Tibshirani, David Botstein, Russ B. Altman, Missing value estimation methods for DNA microarrays, Bioinformatics, Volume 17, Issue 6, June 2001, Pages 520–525, <https://doi.org/10.1093/bioinformatics/17.6.520>.
 #'
@@ -68,11 +62,11 @@ SVDimpute <- function(X, k = NULL, pmin = 1 - 1E-4, maxit = 5) {
   for (j in 2L:m) {
     if (!anyNA(Y[, j])) next
     pairs <- na.omit(X[, c(j-1L, j), drop=FALSE])
-    if (nrow(pairs) == 0) next
     miss <- which(!is.na(Y[, j-1L]) & is.na(Y[, j]))
-    istar <- sapply(miss, function(i) {
+    if (nrow(pairs) == 0 || length(miss) == 0) next
+    istar <- vapply(miss, function(i) {
       which.min(abs(Y[i, j-1L] - pairs[, 1L]))
-    })
+    }, FUN.VALUE = 1L)
     Y[miss, j] <- Y[miss, j-1L] + pairs[istar, 2L] - pairs[istar, 1L]
   }
 
@@ -81,11 +75,11 @@ SVDimpute <- function(X, k = NULL, pmin = 1 - 1E-4, maxit = 5) {
   for (j in (m-1L):1) {
     if (!anyNA(Y[, j])) next
     pairs <- na.omit(X[, c(j, j+1L), drop=FALSE])
-    if (nrow(pairs) == 0) next
     miss <- which(!is.na(Y[, j+1L]) & is.na(Y[, j]))
-    istar <- sapply(miss, function(i) {
+    if (nrow(pairs) == 0 || length(miss) == 0) next
+    istar <- vapply(miss, function(i) {
       which.min(abs(Y[i, j+1L] - pairs[, 2L]))
-    })
+    }, FUN.VALUE = 1L)
     Y[miss, j] <- Y[miss, j+1L] - pairs[istar, 2L] + pairs[istar, 1L]
   }
 
@@ -160,4 +154,3 @@ is.nnint <- function(x) {
 is.posint <- function(x) {
   is.scalar(x, round = TRUE, positive = TRUE)
 }
-

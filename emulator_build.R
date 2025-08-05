@@ -99,7 +99,7 @@ read_sims_only <- FALSE
 #impute_sims <- ifelse(i_s == "AIS" && final_year == "2150", TRUE, FALSE)
 # "none" will currently fail at SVD if missing value(s) in time series (GloGEM, BISICLES)
 # xxx add something to skip runs?
-impute_sims <- "fill"
+impute_sims <- "extend"
 stopifnot(impute_sims %in% c("none", "fill", "extend"))
 if (deliverable_test) impute_sims <- "none"
 
@@ -397,10 +397,7 @@ if (i_s == "AIS") {
 
   # Dates to use later
   if ( final_year > 2150) { cal_start <- 1979
-  } else cal_start <- 2000 # CISM 1996; Elmer/ice 2000; BISICLES starts in 2007; IMAUICE in 2014
-
-  # XXX for now use start of IMAUICE
-  cal_start <- 2014
+  } else cal_start <- 1996 # CISM 1996; Elmer/ice 2000; BISICLES starts in 2007; IMAUICE in 2014
 
   if (deliverable_test) cal_start <- 2000
 }
@@ -1020,7 +1017,7 @@ if (i_s == "GIS") {
 ice_data <- emulandice2::select_sims("main")
 
 # Calculate SLE change w.r.t. cal_start year, and tidy units
-ice_data <- emulandice2::calculate_sle_anom(ice_data)
+#ice_data <- emulandice2::calculate_sle_anom(ice_data)
 
 # Do second selection for glaciers using values of SLE change
 if (deliverable_test) {
@@ -1550,16 +1547,18 @@ if (plot_level > 0) {
 
 #save.image(file="~/PROTECT/emulandice2/sims.RData")
 
+# Save simulations as sim_data, because we will replace ice_data with imputed after this
+sims_data <- ice_data
+
 if (impute_sims != "none") {
 
   # Impute data (take from end of calibration period ta avoid calibrating imputed)
   cat( paste0("\nRequested impute simulations with SVD: ",impute_sims,"\n"),
        file = logfile_build, append = TRUE)
 
-  # Use SVD to impute missing projection years within time series, and at end (up to impute_nyrs limit)
-  years_proj <- years_em[years_em >= cal_end]
-  #years_proj <- years_em
-  ice_data_proj <- ice_data[ , paste0("y", years_proj) ]
+  # Use SVD to impute missing projection years
+  # impute_sims sets whether none, minor fills, or major extensions forward/back
+  ice_data_proj <- ice_data[ , paste0("y", years_em) ]
   num_miss <- is.na(ice_data_proj)
 
   miss_sims <- apply(ice_data_proj, 1, function(x) {
@@ -1591,23 +1590,21 @@ if (impute_sims != "none") {
 
     dev.off()
 
-
-    # Add historical years xxx change if imputing back too
-    ice_data_impute <- cbind(ice_data[ , paste0("y", years_em[years_em < cal_end])], ice_data_impute)
-
-    # if any missing
+    # if any were missing
   } else {
+
     # else return original
-    ice_data_impute <- cbind(ice_data[ , paste0("y", years_em[years_em < cal_end])], ice_data_proj)
-    #ice_data_impute <- ice_data_proj
+    ice_data_impute <- ice_data_proj
   }
 }
 
-# xxx temporary attempt at fix - to be able to impute back for AIS 2300 earlier
-# xxx need to do earlier (and not impute back) if keeping glacier history matching
-#ice_data <- emulandice2::calculate_sle_anom(ice_data) # xxx moved 31/7/25 # still got NAs!
-#ice_data_impute <- emulandice2::calculate_sle_anom(ice_data_impute) # years going wrong
+# NOTE: now using ice_data_impute for all simulation data and plots
+ice_data[ , paste0("y", years_em)] <- ice_data_impute
 
+# Rebaseline by subtracting value in year cal_end, and convert all units to cm SLE
+# xxx Need to call this calculating earlier instead for ice_data (and not impute back)
+# if using glacier history matching (deliverable_test = TRUE)
+ice_data <- emulandice2::calculate_sle_anom(ice_data)
 
 # Sims only for testing: stop here
 #save.image(file="~/PROTECT/emulandice2/sims_impute.RData")
@@ -1617,19 +1614,13 @@ if ( read_sims_only) stop("Stopping after reading and plotting simulations", cal
 #' # Build emulator
 # BUILD EMULATOR  ------------------------------------------------------------
 
-# FULL DATASET:
+# FULL DATASET TO EMULATE:
 
 # Inputs
 XX <- ice_design_scaled
 
-# Outputs: original or imputed
-#if (impute_sims) {
-#  YY <- cbind(ice_data[ , paste0("y", years_em[years_em < cal_end])], ice_data_impute)
-#} else YY <- ice_data[ , paste0("y", years_em) ]
-if (impute_sims != "none") {
-  YY <- ice_data_impute
-} else YY <- ice_data[ , paste0("y", years_em) ]
-
+# Outputs: includes any imputed values
+YY <- ice_data[ , paste0("y", years_em) ]
 
 # Train emulators with:
 
