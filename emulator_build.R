@@ -1577,15 +1577,15 @@ if (impute_sims != "none") {
          width = 9, height = 5)
 
     # All data
-    matplot(years_proj, t(ice_data_impute), type = "n",
+    matplot(years_em, t(ice_data_impute), type = "n",
             col = grey(0.1, 0.1), lty = 1, xlab = "Year", ylab = "Sea level contribution (cm SLE)",
             main = ice_name)
 
     # Imputed values (where original had NA)
-    matlines(years_proj, t(ice_data_impute[ miss_sims, ]),
+    matlines(years_em, t(ice_data_impute[ miss_sims, ]),
              type = "l", col = "red", lty = 1, lwd = 0.5)
     # Simulated values
-    matlines(years_proj, t(ice_data_proj[ miss_sims, ]),
+    matlines(years_em, t(ice_data_proj[ miss_sims, ]),
              type = "l", col = "black", lty = 1, lwd = 0.5)
 
     dev.off()
