@@ -28,42 +28,49 @@ fi
 
 # Moved to today's directory
 now=$(date +'%y%m%d')
-outdir="$results_dir"/"$now"_AIS_ALL_"$final_year"
+outdir="$results_dir"/"$now"_AIS_ALL_"$final_year" # put all in one
 
-#echo run AIS: build
-#Rscript --vanilla -e "library(emulandice2)" -e "source('emulator_build.R')" AIS 0 $final_year
+for region in "EAIS" "PEN"
+do
 
-echo
-echo run AIS: predict
+  echo
+  echo "run_AIS.sh: build file for region: $region"
+
+  Rscript --vanilla -e "library(emulandice2)" -e "source('emulator_build.R')" AIS $region $final_year
+
+  echo
+  echo run AIS: predict
+
   if [ "$final_year" -gt 2200 ]
   then
-     build_file=AIS_ALL_Kori_PISM_BISICLES_IMAUICE_pow_exp_10_EMULATOR.RData
+     build_file="AIS_"$region"_Kori_PISM_BISICLES_IMAUICE_pow_exp_10_EMULATOR.RData"
   fi
   if [ "$final_year" -le 2200 ]
   then
-     build_file=AIS_ALL_Kori_PISM_CISM_ElmerIce_BISICLES_IMAUICE_pow_exp_10_EMULATOR.RData
+     build_file="AIS_"$region"_Kori_PISM_CISM_ElmerIce_BISICLES_IMAUICE_pow_exp_10_EMULATOR.RData"
   fi
 
-echo $build_file
-echo
+  echo $build_file
+  echo
 
-for ssp in "ssp119" "ssp126" "ssp245" "ssp370" "ssp585" "ssp534-over"
-  do
+  for ssp in "ssp119" "ssp126" "ssp245" "ssp370" "ssp585" "ssp534-over"
+    do
 
-  echo "Scenario:" $ssp
+    echo "Scenario:" $ssp
 
-  # IPCC AR6: FaIR 2LM
-  gsat_file=twolayer_SSPs.h5
+    # IPCC AR6: FaIR 2LM
+    gsat_file=twolayer_SSPs.h5
 
-  # Victor test files: FaIR 3LM
-  # gsat_file="$ssp".temperature.fair.temperature_climate.nc
+    # Victor test files: FaIR 3LM
+    # gsat_file="$ssp".temperature.fair.temperature_climate.nc
 
-  echo "GSAT file:" $gsat_file
+    echo "GSAT file:" $gsat_file
 
-  ./emulandice_steer.sh AIS ALL ./data-raw/"$build_file" "$gsat_dir"/"$gsat_file" $ssp ./out/AIS_ALL_"$ssp"_"$final_year"/ 2024 AIS_ALL_"$ssp"_"$final_year"
+   ./emulandice_steer.sh AIS $region ./data-raw/"$build_file" "$gsat_dir"/"$gsat_file" $ssp ./out/AIS_"$region"_"$ssp"_"$final_year"/ 2024 AIS_"$region"_"$ssp"_"$final_year"
 
   done
+done
 
 # Won't move if predictions exist already
-mkdir $outdir
+#mkdir $outdir
 mv "$emulandice_dir"/out/AIS* "$emulandice_dir"/data-raw/AIS* $outdir

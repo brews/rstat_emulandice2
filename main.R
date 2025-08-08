@@ -69,7 +69,7 @@ stopifnot(i_s %in% c("GIS", "AIS", "GLA"))
 
 # Region of ice source
 cat(sprintf("Region: %s\n", reg))
-stopifnot(reg %in% c("ALL", paste0("RGI", sprintf("%02i",1:19))))
+stopifnot(reg %in% c("ALL", "WAIS", "EAIS", "PEN", paste0("RGI", sprintf("%02i",1:19))))
 
 # Emulator build file name includes ice model_list and emulator_covar
 cat(sprintf("Emulator build file: %s\n", emu_file))
@@ -154,7 +154,7 @@ cat(sprintf("\nemulandice2: %s %s\n\n", i_s, reg), file = logfile_results)
 cat(sprintf("\nLoaded emulator file: %s\n", emu_file), file = logfile_results, append = TRUE)
 
 # Sample size for calibration prior distributions
-N_prior <- 10000L # XXX was 500L for testing
+N_prior <- 10000L
 
 # Quantiles to output
 q_list <- c( 0.50, 0.05, 0.95, 0.17, 0.83, 0.25, 0.75 )

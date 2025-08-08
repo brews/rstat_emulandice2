@@ -27,7 +27,7 @@ if (length(args) == 0) {
 
   warning("No arguments set - using defaults")
   i_s <- "AIS"
-  reg_num <- 1
+  reg_arg <- "ALL"
   final_year <- 2150
 
 } else {
@@ -38,8 +38,8 @@ if (length(args) == 0) {
   # Ice source
   i_s <- args[1]
 
-  # Region number (only used by glaciers for now)
-  reg_num <- as.numeric(args[2])
+  # Region (name for AIS; number for GLA)
+  reg_arg <- args[2]
 
   # End year
   final_year <- as.numeric(args[3]) # if past 2100, applies model/ensemble selections later
@@ -49,19 +49,22 @@ if (length(args) == 0) {
 # Check ice source name
 stopifnot(i_s %in% c("GIS","AIS", "GLA"))
 
-# Region is set here
+# Region is checked/set here
 
-# ICE SHEET SECTOR (when implemented xxx)
-if (i_s %in% c("GIS", "AIS")) {
-  reg <- "ALL"
-  stopifnot(reg %in% c("ALL")) # will add basins
-}
+# ICE SHEET / SECTOR
+if (i_s == "GIS") stopifnot( reg_arg == "ALL" )
+if (i_s == "AIS") stopifnot( reg_arg %in% c("WAIS", "EAIS", "PEN", "ALL") )
+reg <- reg_arg
 
 # RGI NUMBER
-if (i_s == "GLA") reg <- paste0("RGI", sprintf("%02i", reg_num)) # zero-padded
+if (i_s == "GLA") {
+  reg_num <- as.numeric(reg_arg)
+  stopifnot( reg_num %in% 1:19 )
+  reg <- paste0("RGI", sprintf("%02i", reg_num)) # zero-padded
+}
 
-# Check region name is valid
-stopifnot(reg %in% c("ALL", paste0("RGI", sprintf("%02i",1:19))))
+# Double-check region name is valid
+stopifnot(reg %in% c("ALL", "WAIS", "EAIS", "PEN", paste0("RGI", sprintf("%02i",1:19))))
 
 # Fix random seed
 set.seed(2024)
@@ -95,11 +98,9 @@ deliverable_test <- config::get("deliverable_test", file = config_file)
 # Just read, filter and plot simulations (for testing etc)
 read_sims_only <- FALSE
 
-# Impute missing years in simulations: currently just AIS to 2150
-#impute_sims <- ifelse(i_s == "AIS" && final_year == "2150", TRUE, FALSE)
-# "none" will currently fail at SVD if missing value(s) in time series (GloGEM, BISICLES)
-# xxx add something to skip runs?
-impute_sims <- "extend"
+# Impute missing years in simulations: either a light fill, or an extension from 2100-2150 for AIS
+# Option "none" will currently fail in make_emu SVD if missing value(s): xxx add something to skip runs?
+impute_sims <- ifelse(i_s == "AIS" && final_year == "2150", "extend", "fill")
 stopifnot(impute_sims %in% c("none", "fill", "extend"))
 if (deliverable_test) impute_sims <- "none"
 
@@ -378,9 +379,10 @@ if (i_s == "GLA") glacier_cap <- emulandice2::get_glacier_cap(reg)
 #' ## Baseline and calibration dates
 
 # Ice sheets: Otosaka et al. (2023) IMBIE is 1992-2020
+# New IMBIE3 ends in 2023
 # Glaciers: Hugonnet et al. (2021) is 2000-2020
-if (i_s == "AIS") cal_end <- 2021
-if (i_s == "GIS") cal_end <- 2021 # xxx to 2023 when imbie3
+if (i_s == "AIS") cal_end <- 2023
+if (i_s == "GIS") cal_end <- 2023
 if (i_s == "GLA") cal_end <- 2020 # because OGGM fails if too early xxx obsolete?
 
 if (deliverable_test) cal_end <- 2020
@@ -975,6 +977,7 @@ if ( i_s == "GIS" && final_year > 2100) {
 # Load sims: ice ---------------------------------------------------------------------
 # GET ICE SIMULATIONS
 
+# Also converts all units to cm SLE
 ice_data <- emulandice2::load_sims(variable = "ice", source = i_s, region = reg) # ice dataset
 
 # Index of first column with name format of yXXXX
@@ -1016,7 +1019,8 @@ if (i_s == "GIS") {
 # Select ice source, region, model(s) and any other exclusions
 ice_data <- emulandice2::select_sims("main")
 
-# Calculate SLE change w.r.t. cal_start year, and tidy units
+# Calculate SLE change w.r.t. cal_start year
+# xxx commented out because using simulations with NAs in historical
 #ice_data <- emulandice2::calculate_sle_anom(ice_data)
 
 # Do second selection for glaciers using values of SLE change
@@ -1143,7 +1147,7 @@ for ( cc in 1:length(climate_data_test)) {
     cat(paste("\nWaarning: cannot find forcing number",cc,"in CSV file:\n"),
         file = logfile_build, append = TRUE)
   } else {
-  tmp[ cc, ] <- as.numeric(unlist(climate_data_test[[cc]][, 3:dim(climate_data)[2]]))
+    tmp[ cc, ] <- as.numeric(unlist(climate_data_test[[cc]][, 3:dim(climate_data)[2]]))
   }
 }
 colnames(tmp) <- colnames(climate_data[ , 3:dim(climate_data)[2]])
@@ -1525,6 +1529,8 @@ for (cc in 1:dim(ice_design_scaled)[2]) {
 scenario_list <- scenario_list[ scenario_list %in% unique(ice_data[,"scenario"]) ]
 #cat(paste("Scenario list:",paste(scenario_list, collapse = ","), "\n"), logfile_build, append = TRUE)
 
+#save.image(file="~/PROTECT/emulandice2/sims.RData")
+
 
 #' # Plot simulations
 # Plot: sims -----------------------------------------------------------------------
@@ -1544,8 +1550,6 @@ if (plot_level > 0) {
 }
 
 # Impute missing ---------------------------------------------------------------
-
-#save.image(file="~/PROTECT/emulandice2/sims.RData")
 
 # Save simulations as sim_data, because we will replace ice_data with imputed after this
 sims_data <- ice_data
@@ -1571,7 +1575,7 @@ if (impute_sims != "none") {
 
   if (sum(num_miss) > 0) {
 
-    ice_data_impute <- emulandice2::SVDimpute( as.matrix(ice_data_proj) )
+    ice_data_impute <- emulandice2::SVDimpute( as.matrix(ice_data_proj))
 
     pdf( file = paste0( outdir, out_name, "_impute.pdf"),
          width = 9, height = 5)
@@ -1590,6 +1594,18 @@ if (impute_sims != "none") {
 
     dev.off()
 
+    # Zoom AIS historical xxx change ylim so can plot for any
+    if (i_s == "AIS" ) {
+      pdf( file = paste0( outdir, out_name, "_impute_zoom.pdf"), width = 9, height = 5)
+      matplot(years_em, t(ice_data_impute), type = "n", xlim = c(1970,2100),
+              ylim = c(-20,50), col = grey(0.1, 0.1), lty = 1,
+              xlab = "Year", ylab = "Sea level contribution (cm SLE)",  main = ice_name)
+      abline(v=2014, lwd=0.5, lty=3)
+      matlines(years_em, t(ice_data_impute[ miss_sims, ]),type = "l", col = "red", lty = 1, lwd = 0.5)
+      matlines(years_em, t(ice_data_proj[ miss_sims, ]),type = "l", col = "black", lty = 1, lwd = 0.5)
+      dev.off()
+    }
+
     # if any were missing
   } else {
 
@@ -1601,10 +1617,10 @@ if (impute_sims != "none") {
 # NOTE: now using ice_data_impute for all simulation data and plots
 ice_data[ , paste0("y", years_em)] <- ice_data_impute
 
-# Rebaseline by subtracting value in year cal_end, and convert all units to cm SLE
+# Rebaseline by subtracting value in year cal_end
 # xxx Need to call this calculating earlier instead for ice_data (and not impute back)
 # if using glacier history matching (deliverable_test = TRUE)
-ice_data <- emulandice2::calculate_sle_anom(ice_data)
+ice_data <- emulandice2::calculate_sle_anom(ice_data, baseline=cal_start)
 
 # Sims only for testing: stop here
 #save.image(file="~/PROTECT/emulandice2/sims_impute.RData")

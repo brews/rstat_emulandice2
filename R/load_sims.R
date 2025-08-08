@@ -25,6 +25,9 @@ load_sims <- function(variable, source = NA, region = NA) { # dataset
     if (variable == "climate") {
       data_file <- paste0( inputs_preprocess, "/GSAT/CLIMATE_FORCING_250119.csv") # IPSL OS, GIS OS-recon
       if (deliverable_test) data_file <- paste0( inputs_preprocess, "/GSAT/CLIMATE_FORCING_240127.csv")
+
+      # Read csv
+      data_csv <- read.csv(data_file)
     }
 
     # Land ice simulations: results from PROTECT!
@@ -37,7 +40,8 @@ load_sims <- function(variable, source = NA, region = NA) { # dataset
       }
 
       if (source == "AIS") {
-        data_file <- paste0( inputs_preprocess, "/AIS/AIS_SIMULATIONS_ZWALLY00_cm_SLE_2014_250729.csv")
+        # ALL file is sum of all Zwally regions, not ZWALLY00 file from modellers - very small differences
+        data_file <- paste0( inputs_preprocess, "/AIS/AIS_SIMULATIONS_", region, "_m_SLE_2014_250808.csv")
         if (deliverable_test) data_file <- paste0( inputs_preprocess, "/AIS/SLE_SIMULATIONS_AIS_full_ZWALLY00_240306.csv")
       }
 
@@ -51,13 +55,26 @@ load_sims <- function(variable, source = NA, region = NA) { # dataset
         if (deliverable_test) data_file <- paste0( inputs_preprocess, "/GLA/SLE_SIMULATIONS_GLA_v2_240317.csv")
 
       }
-    }
+
+      # Read csv
+      data_csv <- read.csv(data_file)
+
+      # Convert ice simulations to same units, assuming glacier CSV file is in mm and ice sheet files are in m
+      cat(paste("load_sims: convert to cm SLE\n"), file = logfile_build, append = TRUE)
+
+      # Convert mm to cm SLE for glaciers
+      if (source == "GLA") data_csv[ , paste0("y",years_sim)] <- data_csv[ , paste0("y",years_sim) ] / 10.0
+
+      # Convert m to cm SLE for ice sheets
+      if (source %in% c("GIS", "AIS")) data_csv[ , paste0("y",years_sim)] <- data_csv[ , paste0("y",years_sim) ] * 100.0
+
+    } # ice
 
   cat(paste("load_sims: read file", data_file, "\n"), file = logfile_build, append = TRUE)
   cat("_____________________________________\n",file = logfile_build, append = TRUE)
 
 
-  return(read.csv(data_file))
+  return(data_csv)
 
 
 }

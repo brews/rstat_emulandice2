@@ -21,8 +21,7 @@ load_obs <- function() {
   if (i_s == "GLA") {
 
     # Read regional file
-    reg_number <- strsplit(reg, split = "RGI")[[1]][2]
-    obs_filename <- paste0(inputs_ext,"/GLA/Hugonnet/time_varying_glacier_areas/dh_", reg_number, "_rgi60_reg_cumul.csv")
+    obs_filename <- sprintf("%s/GLA/Hugonnet/time_varying_glacier_areas/dh_%02i_rgi60_reg_cumul.csv", inputs_ext, reg_num)
 
     cat("\nload_obs: reading observations file\n", obs_filename, file = logfile_build, append = TRUE)
     obs_file <- read.csv(obs_filename)
@@ -48,11 +47,17 @@ load_obs <- function() {
     if (deliverable_test) {
       if (i_s == "GIS") obs_file <- read.csv(paste0(inputs_ext,"/GIS/IMBIE/imbie_greenland_2021_mm.csv"))
       if (i_s == "AIS") obs_file <- read.csv(paste0(inputs_ext,"/AIS/IMBIE/imbie_antarctica_2021_mm.csv"))
-    } else {
-      if (i_s == "GIS") obs_filename <- paste0(inputs_ext,"/GIS/IMBIE/imbie3_greenland_partitioned_mm.csv")
-      if (i_s == "AIS") obs_filename <- paste0(inputs_ext,"/AIS/IMBIE/imbie3_antarctica_partitioned_mm.csv")
       obs_file <- read.csv(obs_filename)
+    } else {
+      if (i_s == "GIS") obs_filename <- paste0(inputs_ext,"/GIS/IMBIE/imbie3_greenland_Gt_partitioned.csv")
+      if (i_s == "AIS") {
+        if (reg == "ALL") obs_filename <- paste0(inputs_ext,"/AIS/IMBIE/imbie3_antarctica_Gt_partitioned.csv")
+        if (reg == "WAIS") obs_filename <- paste0(inputs_ext,"/AIS/IMBIE/imbie3_west_antarctica_Gt_partitioned.csv")
+        if (reg == "EAIS") obs_filename <- paste0(inputs_ext,"/AIS/IMBIE/imbie3_east_antarctica_Gt_partitioned.csv")
+        if (reg == "PEN") obs_filename <- paste0(inputs_ext,"/AIS/IMBIE/imbie3_antarctic_peninsula_Gt_partitioned.csv")
+      }
       cat("\nload_obs: reading observations file\n", obs_filename, file = logfile_build, append = TRUE)
+      obs_file <- read.csv(obs_filename, check.names = FALSE)
     }
 
     # Pick columns and tidy names
@@ -63,26 +68,32 @@ load_obs <- function() {
 
     } else {
 
-      # XXX check when files final
-      if (i_s == "AIS") obs_file <- obs_file[ , c("YYYY.MM.DD","Cumulative.mass.balance.anomaly..mm.", "Cumulative.mass.balance.anomaly.uncertainty..mm.") ]
-      if (i_s == "GIS") obs_file <- obs_file[ , c("YYYY.MM.DD","Cumulative.mass.balance.anomaly..Gt.", "Cumulative.mass.balance.anomaly.uncertainty..Gt.") ]
+      obs_file <- obs_file[ , c("Date","Cumulative mass balance anomaly (Gt)",
+                                                  "Cumulative mass balance anomaly uncertainty (Gt)") ]
+
+      # Get December rows for year total in cumulative sum
+      # Rename with year
+      if (i_s == "AIS" && reg == "ALL") {
+        obs_file <- obs_file[ format(as.Date(obs_file[,1]),"%m") == 12,] # date format YYYY-MM-DD
+        obs_file[,1] <- as.numeric(format(as.Date(obs_file[,1]),"%Y"))
+      } else {
+        obs_file <- obs_file[ format(as.Date(obs_file[,1],tryFormats = c("%d/%m/%Y")),"%m") == 12,] # DD/MM/YYYY
+        obs_file[,1] <- as.numeric(format(as.Date(obs_file[,1],tryFormats = c("%d/%m/%Y")),"%Y"))
+      }
+
+      # Convert cumulative Gt to mm SLE
+      obs_file[,2:3] <- obs_file[,2:3] / ( -1 * 362.5 )
+
       names(obs_file) <- c( "Year", "SLE", "SLE_sd")
-
-      # Convert formats
-      # Pick December months for years (previously used Jan in old IMBIE)
-      obs_file <- obs_file[ format(as.Date(obs_file[,1]),"%m") == 12,]
-
-      # Rename as annual
-      obs_file[,1] <- as.numeric(format(as.Date(obs_file[,1]),"%Y"))
 
     }
 
-    # Uncertainties are negative in IMBIE files xxx look at why and check Heiko method
+    # Uncertainties are negative relative to mean in IMBIE
     obs_file[,3] <- -1 * obs_file[,3]
 
-  }
+  } # ice sheets
 
-  # Convert mm to cm
+  # Convert mm to cm SLE for all observations
   obs_file[,2:3] <- obs_file[,2:3] / 10
 
   return(obs_file)
