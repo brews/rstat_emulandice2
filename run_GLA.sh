@@ -56,7 +56,8 @@ do
 
    if [ "$region" == "09" ]
    then
-    covar="sexp" # For dgpsi: N.B. does not currently work in predict stage, only build stage
+    covar="pow_exp_10"
+    #covar="sexp" # For dgpsi: N.B. does not currently work in predict stage, only build stage
    fi
 
   # START PREDICTION
