@@ -74,9 +74,6 @@ write_outputs <- function(write_mean) {
 
   # SETUP NETCDF STRUCTURE FIRST
 
-  # xxx Currently fixed baseline, but this will change
-  baseyear <- paste0(cal_start,"LL")
-
   # Define dimensions
   timedim <- ncdf4::ncdim_def("years","",longname="",as.integer(years_em))
   sampledim <- ncdf4::ncdim_def("samples","",longname="",0:(N_temp-1))
@@ -133,7 +130,7 @@ write_outputs <- function(write_mean) {
 
     ncdf4::ncatt_put(ncout,0,"history",paste("Created", date()))
     ncdf4::ncatt_put(ncout,0,"source",paste0("FACTS: emulandice2.",facts_ssp,".emu",i_s,".emulandice2.",rr))
-    ncdf4::ncatt_put(ncout,0,"baseyear", baseyear)
+    ncdf4::ncatt_put(ncout,0,"baseyear", paste0(baseyear,"LL"))
     ncdf4::ncatt_put(ncout,0,"scenario",facts_ssp)
     ncdf4::ncatt_put(ncout,0,"region",paste(i_s, rr, sep = "."))
 

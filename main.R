@@ -139,6 +139,8 @@ plot_level <- 2
 # Checks when reading in netcdf - could get rid of this
 #N_2LM <- 50L # 2237L for AR6 files
 
+# Baseline is hard-coded
+baseyear <- 2005
 
 cat("Running...\n")
 
@@ -488,6 +490,26 @@ for (scen in scenario_list) {
     cat( sprintf("Final range: %.3f - %.3f cm SLE\n", min( proj_post[[ scen ]]  ),
                  max( proj_post[[ scen ]]  )), file = logfile_results, append = TRUE)
   }
+
+}
+
+#_______________________________________________________________________________
+#' # Change baseline
+# Rebaseline --------------------------------------------------------------------
+
+# Loops through all projections
+cat("\nRebaselining all projections to year:", baseyear, "\n", file = logfile_results, append = TRUE)
+
+# Could tweak calculate_sle_anom to do this
+for (scen in scenario_list) {
+
+  # Mean emulator projections
+  myem[[scen]]$mean <- myem[[scen]]$mean - myem[[scen]]$mean[, paste0("y",baseyear)]
+  myem_post[[scen]]$mean <- myem_post[[scen]]$mean - myem_post[[scen]]$mean[, paste0("y",baseyear)]
+
+  # Final emulator projections with uncertainties
+  projections[[scen]] <- projections[[scen]] - projections[[scen]][, paste0("y",baseyear)]
+  proj_post[[scen]] <- proj_post[[scen]] - proj_post[[scen]][, paste0("y",baseyear)]
 
 }
 
