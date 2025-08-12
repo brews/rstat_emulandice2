@@ -2082,6 +2082,7 @@ to_save <- c("climate_data", # CLIMATE MODEL SIMULATION DATA
              "first_year", "final_year", "cal_start", "cal_end", # Dates of data and calibration period
              "yy_plot", # Dates to plot
              "validation_type", "validation_years", # Save these for validation plotting
+             "design_sa", "myem", # Main effects projections for plotting
              "ice_name", # Nice ice source name for plots
              "GSAT_lab", # Nice plotting labels for GSAT means
              "sle_lim", "sle_inc", "ylim_obs", # Plotting ranges and increments (inc not used currently)
