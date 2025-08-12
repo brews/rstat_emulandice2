@@ -30,7 +30,7 @@ fi
 now=$(date +'%y%m%d')
 outdir="$results_dir"/"$now"_AIS_ALL_"$final_year" # put all in one
 
-for region in "EAIS" "PEN"
+for region in "WAIS" "EAIS" "PEN" # Can be WAIS, EAIS, PEN or ALL
 do
 
   echo
@@ -72,5 +72,5 @@ do
 done
 
 # Won't move if predictions exist already
-#mkdir $outdir
+mkdir $outdir
 mv "$emulandice_dir"/out/AIS* "$emulandice_dir"/data-raw/AIS* $outdir
