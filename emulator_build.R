@@ -1575,7 +1575,8 @@ if (impute_sims != "none") {
 
   if (sum(num_miss) > 0) {
 
-    ice_data_impute <- emulandice2::SVDimpute( as.matrix(ice_data_proj))
+    ice_data_impute <- emulandice2::SVDimpute( as.matrix(ice_data_proj),
+                                               pmin = 1 - 1E-5)
 
     pdf( file = paste0( outdir, out_name, "_impute.pdf"),
          width = 9, height = 5)
