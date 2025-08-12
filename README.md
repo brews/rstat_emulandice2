@@ -9,10 +9,11 @@ Install package dependencies:
 
 ```
 install.packages('mvtnorm') - multivariate normal for emulator uncertainties
-install.packages('RcppEigen') - needed for RobustGaSP, I think
+install.packages('RcppEigen') - needed for RobustGaSP
 install.packages("nloptr") - needed for RobustGaSP
 install.packages('RobustGaSP') - emulator package
 install.packages('ncdf4') - for reading and writing netcdfs
+install.packages('config') - for using YAML configuration files
 ```
 
 Once emulandice2 is in CRAN, these dependencies will be automatically installed with the module (using install.packages()).

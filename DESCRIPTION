@@ -10,12 +10,13 @@ License: MIT
 Encoding: UTF-8
 LazyData: true
 Imports: 
+    config,
     methods,
     mvtnorm,
-    RobustGaSP,
+    ncdf4,
+    RobustGaSP
+Suggests:
     deepgp,
     dgpsi,
-    laGP,
-    config,
-    ncdf4
+    laGP
 RoxygenNote: 7.3.2
