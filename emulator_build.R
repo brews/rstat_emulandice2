@@ -326,7 +326,7 @@ laGP_scaling <- FALSE
 
 if (emulator_type == "laGP") {
 
-  emulator_covar <- "exp2" # Just used for naming etc for now; Gaussian is default in laGP
+  emulator_covar <- "exp2" # default in laGP
   stopifnot(emulator_covar == "exp2")
 
   laGP_method <- "alcray" # alc, alcray (faster but worse)
