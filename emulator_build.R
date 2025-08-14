@@ -1178,7 +1178,6 @@ do_regions <- TRUE
 if ( i_s == "AIS" && (
   "BISICLES" %in% model_list || "IMAUICE" %in% model_list)) do_regions <- FALSE
 
-# xxxx note the CSV files below should be remade with current data to update fraction estimates
 if (i_s %in% c("AIS","GIS") && do_regions) {
 
   cat("\nIce sheet regional fractions\n", file = logfile_build, append = TRUE)
@@ -1197,10 +1196,6 @@ if (i_s %in% c("AIS","GIS") && do_regions) {
   # Calculate mean fractions for regions
   if (i_s == "GIS") {
 
-    # This file has ALL + 6 regions
-    # xxx issue: Remake after deliverable: this is sle not slc
-    region_file <- read.csv(paste0( inputs_preprocess, "/GIS/SLE_SIMULATIONS_GIS_p9_240304.csv"))
-
     # Translate CSV regions to nicer names for netcdf files
     region_names[["nw"]] <- "NW"
     region_names[["no"]] <- "NO"
@@ -1208,6 +1203,14 @@ if (i_s %in% c("AIS","GIS") && do_regions) {
     region_names[["ne"]] <- "NE"
     region_names[["sw"]] <- "SW"
     region_names[["se"]] <- "SE"
+
+    # xxxx Skip until making new CSV file, as it needs to match main dataset
+    # hard-coded fractions region_fracs are after skipped code
+    if (FALSE) {
+
+      # This file has ALL + 6 regions
+      # xxx issue: Remake after deliverable: this is sle not slc
+      region_file <- read.csv(paste0( inputs_preprocess, "/GIS/SLE_SIMULATIONS_GIS_p9_240304.csv"))
 
     # All simulations (to construct index)
     # xxx could use load_sims here
@@ -1261,7 +1264,17 @@ if (i_s %in% c("AIS","GIS") && do_regions) {
 
     if (plot_level > 0) dev.off()
 
-    cat( paste("\nTotal:", sum(unlist(region_fracs)), "\n"), file = logfile_build, append = TRUE)
+  } # FALSE xxx until remade CSV file
+
+  # xxx Hard-code ice sheet regional fractions for now
+  region_fracs[[ "NW" ]] <- 0.1291
+  region_fracs[[ "NO" ]] <- 0.0874
+  region_fracs[[ "CW" ]] <- 0.1093
+  region_fracs[[ "NE" ]] <- 0.1139
+  region_fracs[[ "SW" ]] <- 0.2904
+  region_fracs[[ "SE" ]] <- 0.2699
+
+  cat( paste("\nTotal:", sum(unlist(region_fracs)), "\n"), file = logfile_build, append = TRUE)
 
   }
 
@@ -1273,6 +1286,10 @@ if (i_s %in% c("AIS","GIS") && do_regions) {
     region_names <- c( "WAIS1", "WAIS2", "WAIS3", # ASE, Ross, RF
                        "PEN",
                        paste0("EAIS", 1:7) )
+
+    # xxxx Skip until making new CSV file, as it needs to match main dataset
+    # hard-coded fractions region_fracs are after skipped code
+    if (FALSE) {
 
     # All simulations (to construct index)
     all <- emulandice2::load_sims(variable = "ice", source = i_s)
@@ -1404,6 +1421,21 @@ if (i_s %in% c("AIS","GIS") && do_regions) {
     }
 
     if (plot_level > 0) dev.off()
+
+    } # FALSE until made new CSV file xxx
+
+    # xxx Hard-code ice sheet regional fractions for now
+    region_fracs[[ "WAIS1" ]] <- 0.475
+    region_fracs[[ "WAIS2" ]] <- 0.121
+    region_fracs[[ "WAIS3" ]] <- 0.102
+    region_fracs[[ "PEN" ]] <- 0.075
+    region_fracs[[ "EAIS1" ]] <- 0.054
+    region_fracs[[ "EAIS2" ]] <- 0.057
+    region_fracs[[ "EAIS3" ]] <- -0.013
+    region_fracs[[ "EAIS4" ]] <- 0.014
+    region_fracs[[ "EAIS5" ]] <- 0.059
+    region_fracs[[ "EAIS6" ]] <- 0.049
+    region_fracs[[ "EAIS7" ]] <- 0.007
 
     cat(sprintf("\nTotal of largest %i sectors after adjustment: %.3f\n", n_largest, tot_adj_largest), file = logfile_build, append = TRUE )
     cat(sprintf("Total of all sectors after adjustment = %.3f\n", tot_adj), file = logfile_build, append = TRUE)
