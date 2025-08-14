@@ -6,6 +6,12 @@
 \usage{
 calc_temps(climate_dataset, mean_impute = FALSE)
 }
+\arguments{
+\item{climate_dataset}{Climate data matrix object}
+
+\item{mean_impute}{TRUE/FALSE to calculate ensemble mean of SSP to use as
+forcings for simulations extended with impute_sims = "extend" (xxx check this)}
+}
 \value{
 `calc_temps()` returns requested temperature change(s) for all
 simulations in climate forcing file.

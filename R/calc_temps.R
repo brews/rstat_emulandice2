@@ -3,6 +3,10 @@
 #' @description
 #' Calculate climate change metric(s) for emulator input from climate forcings
 #'
+#' @param climate_dataset Climate data matrix object
+#' @param mean_impute TRUE/FALSE to calculate ensemble mean of SSP to use as
+#' forcings for simulations extended with impute_sims = "extend" (xxx check this)
+#'
 #' @returns `calc_temps()` returns requested temperature change(s) for all
 #' simulations in climate forcing file.
 #'

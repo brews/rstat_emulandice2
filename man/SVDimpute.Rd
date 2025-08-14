@@ -13,20 +13,13 @@ SVDimpute(X, k = NULL, pmin = 1 - 1e-04, maxit = 5)
 
 \item{pmin}{minimum proportional variation, used to set `k` if `k = NULL`, see Details.}
 
-\item{maxit}{maximum number of iterations.}
+\item{maxit}{maxium number of iterations.}
 }
 \value{
 A matrix like `X` but with the `NA`s imputed, plus an attribute `"param"`, a list with `pmin`, `k`, and `rank` if `maxit > 0`.
 }
 \description{
-Replace `NA` values in matrix `X` with imputed values.  Imputation is along the rows, assuming that all columns of `X` have the same units.
-
-_The order of the columns matters!_ The initial infill is by a variant on Last Value Carried Forward (LVCF).  Therefore it is important that the columns follow a sequence.  If the columns represent points in a grid, then use [snake()] to reorder them before imputation.
-}
-\details{
-This is a two-stage imputation.  Stage 1 is an initial infill of all `NA`s using a variant on LVCF.  If `X[i,j]` is `NA`, it is filled by `X[i,j-1] + diff(X[istar, c(j-1,j)])` where `istar` is the run with the closest value to `X[i,j-1]`.This is followed by a similar backward pass, and the function terminates with an error if there are `NA` remaining after both passes.
-
-Stage 2 (if `maxit > 0`) is a SVD imputation, similar to that described in Troyanskaya et al (2001), see References.  This is carried out after centering `X` (now with no `NA`s).  If `k` is not specified, it is the rank of the SVD approximation of `X` which achieves a proportion `pmin` of the variation of `X`.
+Replace `NA` values in matrix `X` with imputed values.  Imputation is along the rows, assuming that all columns of `X` have the same units.  The initial infill of the `NA`s is using Last Value Carried Forward (LVCF) after centering the columns.  If the columns represent points in a grid, then use [snake()] to reorder them before imputation.
 }
 \examples{
 ## demo using diamondEOO

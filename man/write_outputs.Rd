@@ -4,7 +4,7 @@
 \alias{write_outputs}
 \title{write_outputs: write CSVs of projections.}
 \usage{
-write_outputs(write_mean)
+write_outputs(write_csv)
 }
 \arguments{
 \item{write_csv}{TRUE/FALSE to write projections to CSV}

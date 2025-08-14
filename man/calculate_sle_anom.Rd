@@ -4,7 +4,7 @@
 \alias{calculate_sle_anom}
 \title{calculate_sle_anom: calculate sea level changes.}
 \usage{
-calculate_sle_anom(data_conv)
+calculate_sle_anom(data_conv, baseline = 2014)
 }
 \arguments{
 \item{dataset}{Dataset to calculate: only acts on year value columns}

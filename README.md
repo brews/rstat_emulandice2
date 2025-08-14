@@ -33,22 +33,28 @@ This is slow! The emulators will be optimised and validated during the PROTECT p
 
 Current commands:
 
-### Glaciers, region 3 of 19: 2300 
+### Glaciers, region 3: 2300 
 
 `Rscript --vanilla -e "library(emulandice2)" -e "source('emulator_build.R')" GLA 3 2300`
 
+This can be run for any region number from 1 to 19, and for final year of 2100 or 2300.
+
 ### Antarctica: 2300 
 
-`Rscript --vanilla -e "library(emulandice2)" -e "source('emulator_build.R')" AIS 0 2300`
+`Rscript --vanilla -e "library(emulandice2)" -e "source('emulator_build.R')" AIS ALL 2300`
+
+This can be run for ALL (whole ice sheet), or sectors WAIS, EAIS or PEN (west, east, peninsula), and 
+for final year of 2100, 2150 or 2300.
 
 ### Greenland: 2300 or 2100
 
 ```
-Rscript --vanilla -e "library(emulandice2)" -e "source('emulator_build.R')" GIS 0 2300
-Rscript --vanilla -e "library(emulandice2)" -e "source('emulator_build.R')" GIS 0 2100
+Rscript --vanilla -e "library(emulandice2)" -e "source('emulator_build.R')" GIS ALL 2300
 ```
 
-If no arguments are used, the code should default to running something quick for testing (currently: glaciers, region 3).
+This can also be run for a final year of 2100.
+
+Other final years may also work - see run shell script (run_*.sh) or just try. If no arguments are used, the code should default to running something quick for testing.
 
 **Primary output file:**
 
@@ -61,9 +67,13 @@ This name concatenates the ice source and region (GLA_RGI03), the list of models
 **Other output files:**
 
 * [filename]_build.txt - main log file 
-* [filename]_rgasp.log - log file dump from RobustGaSP
+* [filename]_*.log - log file dump from RobustGaSP or other GP
 * [filename]_SIMS.pdf - plots of simulations
 * [filename]_SA.pdf - plots of sensitivity analysis
+* [filename]_VALID*.pdf - plots of train & test validation in selected years
+OR
+* [filename]_LOO*.pdf - plots of leave-one-out validation in selected years
+* [filename]_region_fractions.pdf - plots of ice sheet fractional contributions, if enabled
 
 Output files are written to outdir, which is currently hard-coded as "~/PROTECT/RESULTS/tmp"). 
 
@@ -86,8 +96,6 @@ where the arguments are taken from the command line. The first two define the ic
 which must match those in the filename of the third (emu_file). The rest give the full names and paths of the emulator build and climate data files, the scenario, path to output directory, random seed, and pipeline_id to prepend to the netcdf filename. 
 
 The steering bash script and module will do some basic checks on these arguments, and attempt to write the output directory if it does not exist.
-
-The current builds are dated 28th-29th January 2024. [need to find a place to put these]
 
 If no arguments are used, the code should default to running something quick for testing.
 
@@ -112,8 +120,7 @@ Outputting CSV files is switched OFF by default. To turn it on, set write_csv = 
 * [filename]_projections_MEAN_SSPXXX.csv - uncalibrated mean projections (i.e. no emulator uncertainty - just for information).
 * [filename]_projections_FULL_SSPXXX.csv - uncalibrated full projections (i.e. with emulator uncertainties)
 * [filename]_projections_POSTERIOR_SSPXXX.csv - Bayesian calibrated projections 
-* [filename]_projections_NROY_SSPXXX.csv - history matching calibrated projections (NROY = not ruled out yet). 
 
-All have one row per GSAT projection, except NROY where some are usually ruled out.
+All have one row per GSAT projection.
 
 

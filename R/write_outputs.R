@@ -12,7 +12,7 @@
 
 # XXX Writing zero in cal_start year column - add this to projections instead!
 
-write_outputs <- function(write_mean) {
+write_outputs <- function(write_csv) {
 
   # XXX Should write parameter values to a separate file for reference
 
