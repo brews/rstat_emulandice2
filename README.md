@@ -3,25 +3,28 @@ Emulator of multi-model land ice projections: emulandice v2 for FACTS
 
 # Setup
 
-Load R and cmake on your system.
+- Install R and cmake on your system;
 
-Install package dependencies:
+- Install package dependencies, e.g., by pasting the following into the R console:
 
 ```
-install.packages('mvtnorm') - multivariate normal for emulator uncertainties
-install.packages('RcppEigen') - needed for RobustGaSP
-install.packages("nloptr") - needed for RobustGaSP
-install.packages('RobustGaSP') - emulator package
-install.packages('ncdf4') - for reading and writing netcdfs
-install.packages('config') - for using YAML configuration files
+install.packages('mvtnorm')    # multivariate normal for emulator uncertainties
+install.packages('RcppEigen')  # needed for RobustGaSP
+install.packages("nloptr")     # needed for RobustGaSP
+install.packages('RobustGaSP') # emulator package
+install.packages('ncdf4')      # for reading and writing netcdfs
+install.packages('config')     # for using YAML configuration files
 ```
 
-Once emulandice2 is in CRAN, these dependencies will be automatically installed with the module (using install.packages()).
+(Note: once emulandice2 is in CRAN, these dependencies will be automatically installed with the module, using `install.packages('emulandice2')`)
 
+- Clone this repository;
 
-Install emulandice2:
+- Install emulandice2. From the parent directory of the cloned repository, run:
 
-`R CMD INSTALL --no-multiarch --with-keep.source emulandice`
+```
+R CMD INSTALL --no-multiarch --with-keep.source emulandice2
+```
 
 
 
