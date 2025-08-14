@@ -1172,11 +1172,13 @@ stopifnot(N_sims > 0)
 
 # Ice sheet regions ------------------------------------------------------------
 
-do_regions <- FALSE # xxx for testing
+do_regions <- TRUE
+
 # xxx can remove this exception when I get IMAUICE regions and remake regional CSV files
 if ( i_s == "AIS" && (
   "BISICLES" %in% model_list || "IMAUICE" %in% model_list)) do_regions <- FALSE
 
+# xxxx note the CSV files below should be remade with current data to update fraction estimates
 if (i_s %in% c("AIS","GIS") && do_regions) {
 
   cat("\nIce sheet regional fractions\n", file = logfile_build, append = TRUE)
@@ -1189,6 +1191,8 @@ if (i_s %in% c("AIS","GIS") && do_regions) {
   region_names <- list() # names of regions
   region_fracs_all <- list() # histograms for each region
   region_fracs <- list() # mean or adjusted median fraction for each region
+
+  # Get GIS fractions ---------------------------------------
 
   # Calculate mean fractions for regions
   if (i_s == "GIS") {
@@ -1213,12 +1217,9 @@ if (i_s %in% c("AIS","GIS") && do_regions) {
     # Timeslices for sims selected in main analysis
     all <- all[ sims_index, paste0("y", years_em) ]
 
-    # Plot: GIS regions ----------------------------------------------------------
-
     # Open plot file for histograms
-    # xxx use prefix name as for other pdfs
     if (plot_level > 0) {
-      pdf( file = paste0( outdir, "region_fractions_", i_s, ".pdf" ))
+      pdf( file = paste0( outdir, out_name, "_region_fractions.pdf" ))
       par(mfrow = c(3,2))
     }
 
@@ -1263,6 +1264,8 @@ if (i_s %in% c("AIS","GIS") && do_regions) {
     cat( paste("\nTotal:", sum(unlist(region_fracs)), "\n"), file = logfile_build, append = TRUE)
 
   }
+
+  # Get AIS fractions ---------------------------------------
 
   # Calculate adjusted mean fractions for regions
   if (i_s == "AIS") {
@@ -1345,12 +1348,9 @@ if (i_s %in% c("AIS","GIS") && do_regions) {
     tot_adj <- 0.0
     tot_adj_largest <- 0.0
 
-    # Plot: AIS regions ----------------------------------------------------------
-
     # Pdf later than for GIS because adjusting fractions
     if (plot_level > 0) {
-      # xxx Use prefix name - can probably move both outside i_s chunks
-      pdf( file = paste0( outdir, "region_fractions_", i_s, ".pdf" ))
+      pdf( file = paste0( outdir, out_name, "region_fractions.pdf" ))
       par(mfrow = c(3,2))
     }
 
@@ -2096,6 +2096,9 @@ if ( i_s == "GIS" && final_year > 2100) {
 }
 
 if (i_s == "GLA") to_save <- c(to_save, "glacier_cap") # Glacier region maximum contributions
+
+# Regional fractions
+if (do_regions) to_save <- c(to_save, "region_names", "region_fracs")
 
 # RobustGaSP settings (no need to save emulator_covar as it is in RData name)
 # Not sure if these are needed, as only predict is used

@@ -87,7 +87,7 @@ write_outputs <- function(write_mean) {
   # REGION(S) TO WRITE
   regions_write <- reg
 
-  # Loop for writing ice sheet regional files (and later glacier regions, if modelled jointly)
+  # Loop for writing ice sheet regional files
   if (i_s %in% c("GIS", "AIS") && do_regions ) regions_write <- c(regions_write, region_names)
 
   # VARIABLE TO WRITE: transpose posterior projections and convert cm to mm for FACTS
