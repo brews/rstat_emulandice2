@@ -3,25 +3,26 @@ Emulator of multi-model land ice projections: emulandice v2 for FACTS
 
 # Setup
 
-Load R and cmake on your system.
+- Install R and cmake on your system;
 
-Install package dependencies:
+- Install package dependencies, e.g., by pasting the following into the R console:
 
 ```
-install.packages('mvtnorm') - multivariate normal for emulator uncertainties
-install.packages('RcppEigen') - needed for RobustGaSP
-install.packages("nloptr") - needed for RobustGaSP
-install.packages('RobustGaSP') - emulator package
-install.packages('ncdf4') - for reading and writing netcdfs
-install.packages('config') - for using YAML configuration files
+install.packages('mvtnorm')    # multivariate normal for emulator uncertainties
+install.packages('RcppEigen')  # needed for RobustGaSP
+install.packages("nloptr")     # needed for RobustGaSP
+install.packages('RobustGaSP') # emulator package
+install.packages('ncdf4')      # for reading and writing netcdfs
+install.packages('config')     # for using YAML configuration files
 ```
 
-Once emulandice2 is in CRAN, these dependencies will be automatically installed with the module (using install.packages()).
+- Clone this repository;
 
+- Install emulandice2. From the parent directory of the cloned repository, run:
 
-Install emulandice2:
-
-`R CMD INSTALL --no-multiarch --with-keep.source emulandice`
+```
+R CMD INSTALL --no-multiarch --with-keep.source emulandice2
+```
 
 
 
@@ -84,16 +85,22 @@ Plotting is turned ON by default. Changing plot_level from 2 to 1 will reduce th
 
 **Runs top-level script: main.R**
 
-Once the GP emulator build files are created, they can be used in FACTS to quickly predict land ice contributions to sea level for a set of GSAT projections:
+Once the GP emulator build files are created, they can be used in FACTS to quickly predict land ice contributions to sea level for a set of GSAT projections by running the steering shell script like this:
 
 `./emulandice_steer.sh ice_source region path_to_emu_file path_to_climate_data_file scenario outdir seed_num pipeline_id`
 
-The emulandice_steer.sh file contains the command:
+* ice_source: GIS, AIS, or GLA 
+* region: ALL (for GIS or AIS); WAIS, EAIS or PEN (for AIS); RGI01 to RGI19 (for GLA; note zero-padding)
+* path_to_emu_file: this is the full path and name of the .RData build file created in stage 1; the build file name must be called "ice_source_region_*.RData"
+* path_to_climate_data_file: this is the full path and name of the global temperature netcdf file used to drive FACTS projections
+* scenario: e.g. ssp126, ssp585 (must be in the climate data file and recognised by emulandice)
+* outdir: location of projections output directory (will be written if it does not exist)
+* seed_num: random seed number, for controlling random sampling
+* pipeline_id: name for this set of projections (defined by FACTS or user and used in the output netcdf filenames)
+
+The emulandice_steer.sh file generates predictions by running main.R using the above arguments:
 
 `Rscript --vanilla -e "library(emulandice2)" -e "source('main.R')" $ice_source $region $emu_file $climate_data_file $scenario $outdir $seed $pipeline_id`
-
-where the arguments are taken from the command line. The first two define the ice source and region, 
-which must match those in the filename of the third (emu_file). The rest give the full names and paths of the emulator build and climate data files, the scenario, path to output directory, random seed, and pipeline_id to prepend to the netcdf filename. 
 
 The steering bash script and module will do some basic checks on these arguments, and attempt to write the output directory if it does not exist.
 
