@@ -2130,7 +2130,7 @@ if ( i_s == "GIS" && final_year > 2100) {
 if (i_s == "GLA") to_save <- c(to_save, "glacier_cap") # Glacier region maximum contributions
 
 # Regional fractions
-if (do_regions) to_save <- c(to_save, "region_names", "region_fracs")
+if (do_regions && i_s %in% c("AIS", "GIS")) to_save <- c(to_save, "region_names", "region_fracs")
 
 # RobustGaSP settings (no need to save emulator_covar as it is in RData name)
 # Not sure if these are needed, as only predict is used
