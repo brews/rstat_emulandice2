@@ -1175,8 +1175,8 @@ stopifnot(N_sims > 0)
 do_regions <- TRUE
 
 # xxx can remove this exception when I get IMAUICE regions and remake regional CSV files
-if ( i_s == "AIS" && (
-  "BISICLES" %in% model_list || "IMAUICE" %in% model_list)) do_regions <- FALSE
+#if ( i_s == "AIS" && (
+#  "BISICLES" %in% model_list || "IMAUICE" %in% model_list)) do_regions <- FALSE
 
 if (i_s %in% c("AIS","GIS") && do_regions) {
 
@@ -1274,7 +1274,7 @@ if (i_s %in% c("AIS","GIS") && do_regions) {
   region_fracs[[ "SW" ]] <- 0.2904
   region_fracs[[ "SE" ]] <- 0.2699
 
-  cat( paste("\nTotal:", sum(unlist(region_fracs)), "\n"), file = logfile_build, append = TRUE)
+  cat( paste("\nTotal:", sum(unlist(region_fracs)), "\n\n"), file = logfile_build, append = TRUE)
 
   }
 
@@ -1422,6 +1422,9 @@ if (i_s %in% c("AIS","GIS") && do_regions) {
 
     if (plot_level > 0) dev.off()
 
+    cat(sprintf("\nTotal of largest %i sectors after adjustment: %.3f\n", n_largest, tot_adj_largest), file = logfile_build, append = TRUE )
+    cat(sprintf("Total of all sectors after adjustment = %.3f\n", tot_adj), file = logfile_build, append = TRUE)
+
     } # FALSE until made new CSV file xxx
 
     # xxx Hard-code ice sheet regional fractions for now
@@ -1437,8 +1440,6 @@ if (i_s %in% c("AIS","GIS") && do_regions) {
     region_fracs[[ "EAIS6" ]] <- 0.049
     region_fracs[[ "EAIS7" ]] <- 0.007
 
-    cat(sprintf("\nTotal of largest %i sectors after adjustment: %.3f\n", n_largest, tot_adj_largest), file = logfile_build, append = TRUE )
-    cat(sprintf("Total of all sectors after adjustment = %.3f\n", tot_adj), file = logfile_build, append = TRUE)
 
   }
 
