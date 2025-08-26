@@ -98,17 +98,26 @@ deliverable_test <- config::get("deliverable_test", file = config_file)
 # Just read, filter and plot simulations (for testing etc)
 read_sims_only <- FALSE
 
-# Impute missing years in simulations: either a light fill, or an extension from 2100-2150 for AIS
+# Impute missing years in simulations: either a light fill, or an extension
 # Option "none" will currently fail in make_emu SVD if missing value(s): xxx add something to skip runs?
-impute_sims <- ifelse(i_s == "AIS" && final_year == "2150", "extend", "fill")
-stopifnot(impute_sims %in% c("none", "fill", "extend"))
-if (deliverable_test) impute_sims <- "none"
+# Extend will only use the simulation if forcing exists (often doesn't)
 
-# This is how far the imputation will extend a simulation (or not)
-# will only use the extend simulation if forcing exists (often doesn't)
+# Defaults: type and number of missing years allowed
+impute_sims <- "fill"
+impute_nyrs <- 5  # restricted fill
+
+if (i_s == "AIS" && final_year == "2150") {
+  impute_sims <- "extend"
+  impute_nyrs <- 50
+}
+if (i_s == "GIS" && final_year == "2300") {
+  impute_sims <- "extend"
+  impute_nyrs <- 100
+}
+if (deliverable_test) impute_sims <- "none"
+stopifnot(impute_sims %in% c("none", "fill", "extend"))
+
 if (impute_sims == "none") impute_nyrs <- 0
-if (impute_sims == "fill") impute_nyrs <- 5  # restricted fill
-if (impute_sims == "extend") impute_nyrs <- 50 # extended
 
 # Later there are options to pick sub-ensembles (obsolete / not used?)
 ensemble_subset <- NA
@@ -783,7 +792,7 @@ plot_level <- 2
 stopifnot(plot_level %in% c(0,1,2)) # using plot_level = 3 to distinguish main.R calls
 
 # Write validation and SA RData file for nice replotting later
-write_sa <- FALSE
+write_sa <- TRUE
 
 # Sub-sample to plot; exclude any dates not predicted by emulator
 yy_plot <- c(as.character(cal_end),"2100", "2150", "2200", "2300")
