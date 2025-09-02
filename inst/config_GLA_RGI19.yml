@@ -3,8 +3,3 @@ default:
   deliverable_test: FALSE
   validation_type: "tvt"
   emulator_covar: "pow_exp_01"
-lagp:
-  emulator_type: "laGP"
-
-
-
