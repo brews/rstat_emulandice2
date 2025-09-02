@@ -4,7 +4,14 @@
 \alias{make_emu}
 \title{make_emu: build emulator}
 \usage{
-make_emu(designX, responseF, r = NULL, thresh = 0.999)
+make_emu(designX, responseF, forcingX, r = NULL, thresh = 0.999)
+}
+\arguments{
+\item{designX}{Full dataset design}
+
+\item{responseF}{Full dataset response}
+
+\item{forcingF}{Full climate timeseries for SVD (optional)}
 }
 \value{
 `make_emu()` returns an emulator object to use.

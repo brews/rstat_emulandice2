@@ -485,6 +485,10 @@ cat(paste("Validation years:", paste(validation_years, collapse = ",")), "\n", f
 #_______________
 cat("\nEMULATOR INPUTS:\n", file = logfile_build, append = TRUE)
 
+# Switch for GSAT means or SVD (only summary for now)
+temp_input <- "mean"
+stopifnot(temp_input == "mean")
+
 # // Temps ------------------------------------------------------------
 
 # GSAT timeslices for ice_design
@@ -782,7 +786,7 @@ if (emulator_type == "deepgp") {
   # Placeholder if I want to set matern smoothness parameter later
 }
 
-# Plot: choices ------------------------------------------------------------
+# Plot choices ------------------------------------------------------------
 #' ## Plot choices
 
 # Plot all or just subset of figures
@@ -972,16 +976,18 @@ climate_data <- impute_climate(climate_csv)
 # XXX DROP ROWS NOT IN CSV HERE I THINK
 
 # Calculate climate change timeslice(s) e.g. GSAT_2100 for emulator input(s)
-# Also for all rows in climate data - not very effcient
+# Also for all rows in climate data - not very efficient
 # Option to add ensemble mean for each SSP for missing forcings
 # (for imputing to extend ice simulations later)
 impute_gcms <- ifelse(impute_sims == "extend", TRUE, FALSE)
+
+# Calculate summary means
 temps_data <- emulandice2::calc_temps(climate_data, mean_impute = impute_gcms)
 
 # For GIS post-2100, repeat with fixed climate forcings
-# No need to set mean_impute, because this is already filling in [?]
+# No need to set mean_impute, because this is already filling in [?] xxx check
 if ( i_s == "GIS" && final_year > 2100) {
-  climate_data_fixed <- impute_climate(climate_csv, construct_fixed = TRUE)
+  if (temp_input == "mean") climate_data_fixed <- impute_climate(climate_csv, construct_fixed = TRUE)
   temps_data_fixed <- emulandice2::calc_temps(climate_data_fixed)
 }
 
@@ -1058,6 +1064,7 @@ if (i_s == "GIS" && final_year > 2100) {
   cat("\nNow try matching again after reconstructing fixed post-2100 forcings in dataset\n",
       file = logfile_build, append = TRUE)
 
+  # Summary means
   temps_fixed <- emulandice2::match_gcms(ice_data, temps_data_fixed)
   temps[ fixed_ind, ] <- temps_fixed[ fixed_ind, ]
 
@@ -1069,7 +1076,6 @@ temps <- temps[ , -(1:2) ]
 # Make numeric
 if (length(temps_list) == 1) { temps <- as.numeric(temps)
 } else temps <- apply(temps, 2, as.numeric)
-
 
 # Find ice simulations that have climate forcing (just last timeslice if multiple)
 if ( length(temps_list) == 1 ) { sim_index <- !is.na(temps)
@@ -1809,15 +1815,17 @@ if ( validation_type != "loo" | # case 3,4
 # Writes emu obj into .RData workspace file later for running in FACTS
 # Note this call is repeated in do_LOO.R
 
-# Train with random/ordered subset, or else full dataset ice_data[_impute]
+# Train emulator with random/ordered subset, or full dataset ice_data[_impute]
 if (train_subset) {
   Xtrain <- XX_sub
   Ytrain <- YY_sub
 } else {
-  # Need to keep XX,YY if test and train validation - draw test_set
   Xtrain <- XX
   Ytrain <- YY
 }
+
+# Check we have the same number of rows in design and output matrices
+stopifnot(nrow(Xtrain) == nrow(Ytrain))
 
 print("Building emulator...")
 
@@ -1828,85 +1836,117 @@ if (i_s == "GIS" && final_year >= 2200) scree_thresh = 0.99999
 # Flag for whether we are coming from main.R or emulator_build.R
 is_build <- TRUE
 
-emu_mv <- emulandice2::make_emu( as.matrix(Xtrain), as.matrix(Ytrain),
-                                 thresh = scree_thresh) # uses same in do_loo() call below
+# Start log file
+emu_log_file <- paste0(outdir, out_name,"_", emulator_type, ".log")
+cat("______________________________________\n", file = emu_log_file)
+cat("EMULATOR LOG FILE\n\n", file = emu_log_file, append = TRUE)
+cat("MAIN EMULATOR:\n", file = emu_log_file, append = TRUE)
+cat("______________________________________\n", file = emu_log_file, append = TRUE)
 
+# If change anything here, also change in do_loo()
+# Design continuous inputs are scaled
+
+# Emulate using all columns (i.e. GSAT means)
+if (temp_input == "mean") emu_mv <- emulandice2::make_emu( designX = as.matrix(Xtrain),
+                                                           responseF = as.matrix(Ytrain),
+                                                           thresh = scree_thresh)
 #save.image(file="~/PROTECT/emulandice2/make_emu.RData")
 
 # ________________----
 # TEST ------------------------------------------------------------
 
+cat("______________________________________\n", file = emu_log_file, append = TRUE)
+cat("EMULATOR: predict main effects\n", file = emu_log_file, append = TRUE)
+cat("______________________________________\n", file = emu_log_file, append = TRUE)
+
 #' # Predict for SA designs
 # Design: main effects ---------------------------------------------------------
 
-#' ## Main effects
-# Main effects (i.e. one-at-a-time design for sensitivity analysis)
-design_sa <- emulandice2::load_design_to_pred("main_effects", 100L)
+if (temp_input == "mean") {
 
-cat(paste("\nPredict for main effect plots:\n"), file = logfile_build, append = TRUE)
+  #' ## Main effects
+  # Main effects (i.e. one-at-a-time design for sensitivity analysis)
+  design_sa <- emulandice2::load_design_to_pred("main_effects", 100L)
 
-# Predict: overwrite object
-myem <- list()
-for (input in names( design_sa )) {
+  cat(paste("\nPredict for main effect plots:\n"), file = logfile_build, append = TRUE)
 
-  cat(paste("Main effects:",input,"\n"), file = logfile_build, append = TRUE)
+  # Predict: overwrite object
+  myem <- list()
+  for (input in names( design_sa )) {
 
-  design_sa_scaled_cont <- scale(design_sa[[input]][ , input_cont_list],
-                                 center = inputs_centre,
-                                 scale = inputs_scale )
+    cat(paste("\nMain effects:",input,"\n"), file = logfile_build, append = TRUE)
 
-  design_sa_scaled <- as.data.frame( design_sa[[input]] )
-  design_sa_scaled[ , input_cont_list ] <- design_sa_scaled_cont
+    cat(paste("Range:", min(design_sa[[input]][, input]), "-",
+              max(design_sa[[input]][, input]),
+              "\n"), file = logfile_build, append = TRUE)
 
-  myem[[input]] <- emulandice2::emulator_predict( design_sa_scaled )
-}
-
-#save.image(file="~/PROTECT/emulandice2/MEFF.RData")
-
-#' ## Uniform temperature prior
-
-# Design: uniform --------------------------------------------------------------
-
-# Design "unif_temps" makes projections using uniform priors for GSAT with same ranges as sims
-# a better comparison than using FaIR projected distributions for each SSP
-
-design_pred <- emulandice2::load_design_to_pred("unif_temps", N_unif)
-
-cat(paste("\nPredict for uniform temp designs:\n"), file = logfile_build, append = TRUE)
-
-for (scen in scenario_list) {
-
-  cat(paste("Scenario with uniform priors:",scen,"\n"), file = logfile_build, append = TRUE)
-
-  design_pred_scaled_cont <- scale(design_pred[[scen]][ , input_cont_list],
+    design_sa_scaled_cont <- scale(design_sa[[input]][ , input_cont_list],
                                    center = inputs_centre,
                                    scale = inputs_scale )
-  design_pred_scaled <- as.data.frame( design_pred[[scen]]  )
-  design_pred_scaled[ , input_cont_list] <- design_pred_scaled_cont
-  myem[[scen]] <- emulandice2::emulator_predict( design_pred_scaled )
-}
 
-#save.image(file="~/PROTECT/emulandice2/unif_temps.RData")
+    design_sa_scaled <- as.data.frame( design_sa[[input]] )
+    design_sa_scaled[ , input_cont_list ] <- design_sa_scaled_cont
+
+    if (temp_input == "mean") myem[[input]] <- emulandice2::emulator_predict( design_sa_scaled, forcing_prior = "mean")
+  }
+
+  #save.image(file="~/PROTECT/emulandice2/MEFF.RData")
+
+  #' ## Uniform temperature prior
+
+  # Design: uniform --------------------------------------------------------------
+
+  # Design "unif_temps" makes projections using uniform priors for GSAT with same ranges as sims
+  # a better comparison than using FaIR projected distributions for each SSP
+
+  cat("______________________________________\n", file = emu_log_file, append = TRUE)
+  cat("EMULATOR: predict uniform prior\n", file = emu_log_file, append = TRUE)
+  cat("______________________________________\n", file = emu_log_file, append = TRUE)
+
+  design_pred <- emulandice2::load_design_to_pred("unif_temps", N_unif)
+
+  cat(paste("\nPredict for uniform temp designs:\n"), file = logfile_build, append = TRUE)
+
+  for (scen in scenario_list) {
+
+    cat(paste("\nScenario with uniform priors:",scen,"\n"), file = logfile_build, append = TRUE)
+
+    design_pred_scaled_cont <- scale(design_pred[[scen]][ , input_cont_list],
+                                     center = inputs_centre,
+                                     scale = inputs_scale )
+    design_pred_scaled <- as.data.frame( design_pred[[scen]]  )
+    design_pred_scaled[ , input_cont_list] <- design_pred_scaled_cont
+
+    if (temp_input == "mean") myem[[scen]] <- emulandice2::emulator_predict( design_pred_scaled, forcing_prior = "mean" )
+
+  }
+
+  #save.image(file="~/PROTECT/emulandice2/unif_temps.RData")
 
 
-# Sample emu uncertainty ----------------------------------------------------------------------
-projections <- list()
+  # Sample emu uncertainty ----------------------------------------------------------------------
+  projections <- list()
 
-# Want to see unif_temps final projections (samples with uncertainty) for validation
-for (scen in scenario_list) {
-  projections[[scen]] <- emulandice2::emulator_uncertainty(myem[[scen]])
+  # Want to see unif_temps final projections (samples with uncertainty) for validation
+  for (scen in scenario_list) {
+    projections[[scen]] <- emulandice2::emulator_uncertainty(myem[[scen]])
+  }
+
 }
 
 # Plot: SA -----------------------------------------------------
 
-# Plot sensitivity analysis
-if (plot_level > 0) {
-  pdf( file = paste0( outdir, out_name, "_SA.pdf"),
-       width = 9, height = 5)
-  emulandice2::plot_scatter("prior", "main_effects", plot_level)
-  emulandice2::plot_scatter("prior", "unif_temps", plot_level)
-  emulandice2::plot_scatter("posterior", "unif_temps", plot_level) # overkill?
-  dev.off()
+if (temp_input == "mean") {
+
+  # Plot sensitivity analysis
+  if (plot_level > 0) {
+    pdf( file = paste0( outdir, out_name, "_SA.pdf"),
+         width = 9, height = 5)
+    emulandice2::plot_scatter("prior", "main_effects", plot_level)
+    emulandice2::plot_scatter("prior", "unif_temps", plot_level)
+    emulandice2::plot_scatter("posterior", "unif_temps", plot_level) # overkill?
+    dev.off()
+  }
 }
 
 
@@ -1920,12 +1960,19 @@ if (plot_level > 0) {
 # Builds LOO emulators, and plots + keeps results for requested timeslices
 if (validation_type == "loo") {
 
+  cat("______________________________________\n", file = emu_log_file, append = TRUE)
+  cat("EMULATOR: predict LOO\n", file = emu_log_file, append = TRUE)
+  cat("______________________________________\n", file = emu_log_file, append = TRUE)
+
   cat("\nLEAVE ONE OUT VALIDATION\n", file = logfile_build, append = TRUE)
 
   # Test every N_k-th run
   # this is the slow bit....
   # xxx Improve: stratified by output value instead of every N_k
-  loo_valid_all <- emulandice2::do_loo( as.matrix(Xtrain), as.matrix(Ytrain), validation_years, N_k = N_k)
+  if (temp_input == "mean") loo_valid_all <- emulandice2::do_loo( designX = as.matrix(Xtrain),
+                                                                  responseF = as.matrix(Ytrain),
+                                                                  year_list = validation_years,
+                                                                  N_k = N_k)
 
   # To store results
   loo_mean <- list()
@@ -1992,6 +2039,10 @@ if (validation_type == "loo") {
 # and plots + keeps results for requested timeslices
 if (validation_type == "tvt") {
 
+  cat("______________________________________\n", file = emu_log_file, append = TRUE)
+  cat("EMULATOR: predict left-out test data\n", file = emu_log_file, append = TRUE)
+  cat("______________________________________\n", file = emu_log_file, append = TRUE)
+
   cat("\nTRAIN AND TEST VALIDATION\n", file = logfile_build, append = TRUE)
 
   # Get index of all rows except training data
@@ -2000,7 +2051,8 @@ if (validation_type == "tvt") {
   # Predict for all the original design points not in the training set
   # Note inputs are already scaled
   # ice_design_scaled has same number of rows as ice_data
-  emu_test <- emulandice2::emulator_predict( ice_design_scaled[ test_set, ] )
+  # xxx ice_design_scaled is also called XX?
+  emu_test <- emulandice2::emulator_predict( ice_design_scaled[ test_set, ], forcing_prior = "mean" )
 
   # Unlike LOO, should be no missing data in these: i.e. values for all test sims
   test_mean <- list()
@@ -2106,6 +2158,7 @@ sa_file <- paste0(rdatadir, out_name, "_SA.RData")
 to_save <- c("climate_data", # CLIMATE MODEL SIMULATION DATA
              "ice_data", # ALL SELECTED ICE MODEL SIMULATION DATA
              "YY", # ice_data or subset of ice_data, with any imputed values
+             "Xtrain", "Ytrain", # training data (emulator may not use GSAT columns)
              "obs_data", # OBSERVATION DATA
              "inputs_preprocess", "inputs_ext", # Paths for package data
              "out_name", # General part of all output filenames
@@ -2119,6 +2172,7 @@ to_save <- c("climate_data", # CLIMATE MODEL SIMULATION DATA
              "ice_cont_list", "ice_factor_list", "ice_all_list", # Lists of emulated inputs: continuous, factors, all
              "ice_dummy_list", "ice_factor_values", # Dummy column names and values for factor inputs
              "N_temp_yrs", # GSAT mean years; used in priors
+             "temp_input", # Using GSAT means or SVD
              "temps", "temps_baseline", "temps_list", "temps_list_names", # GSAT means and names used
              "input_cont_list", # List of emulated continuous inputs, i.e. c(temps_list_names, ice_cont_list)
              "emulator_type",

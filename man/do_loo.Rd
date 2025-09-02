@@ -4,7 +4,7 @@
 \alias{do_loo}
 \title{do_LOO: calculate leave-one-out information.}
 \usage{
-do_loo(designX, responseF, year_list, N_k = NA)
+do_loo(designX, forcingX, responseF, year_list, N_k = NA)
 }
 \arguments{
 \item{designX}{Full dataset design}

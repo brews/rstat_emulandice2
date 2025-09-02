@@ -13,7 +13,7 @@
 #'
 #' @export
 
-do_loo <- function(designX, responseF, year_list, N_k = NA) {
+do_loo <- function(designX, responseF, forcingX, year_list, N_k = NA) {
 
   cat("_____________________________________\n",file = logfile_build, append = TRUE)
   cat(paste("do_loo:", paste(year_list, collapse = ","),"\n"), file = logfile_build, append = TRUE)
@@ -51,17 +51,17 @@ do_loo <- function(designX, responseF, year_list, N_k = NA) {
 
     # Fit emulator to all but that one simulation
     # 22/7/25: changed to be X and Y from emulator_build.R passed as arguments
-    emu_mv_loo <- try(make_emu( designX[ -ss, ], responseF[ -ss, paste0("y", years_em) ],
-                      thresh = scree_thresh ) )
-
+    if (temp_input == "mean") emu_mv_loo <- try(make_emu( designX = designX[ -ss, ],
+                                                          responseF = responseF[ -ss, paste0("y", years_em) ],
+                                                          thresh = scree_thresh ) )
     # Skip if failed
     # xxx This was for GIS CISM while trying to understand error
     # xxx Replaced 'next' with warning when changed to function - put back?
     if (inherits(emu_mv_loo, "try-error")) warning("Failed to do LOO test") # next
 
     # Predict for this one
-    emu_one <- emu_mv_loo( designX[ ss, ], type = "sd")
-
+    # This mimics emulator_predict function, but sd not var
+    if (temp_input == "mean") emu_one <- emu_mv_loo( designX[ ss, ], type = "sd")
     colnames(emu_one$mean) <- paste0("y", years_em)
     colnames(emu_one$sd) <- paste0("y", years_em)
 

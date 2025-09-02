@@ -9,9 +9,11 @@
 #'
 #' @export
 
-emulator_predict <- function(design_prior) {
+emulator_predict <- function(design_prior, forcing_prior = "mean") {
 
-  myem <- emu_mv( as.matrix(design_prior), type = "var")
+  if (forcing_prior == "mean") { myem <- emu_mv( designXout = as.matrix(design_prior),
+                                               forcingXout = as.matrix(forcing_prior), type = "var")
+  } else myem <- emu_mv( designXout = as.matrix(design_prior), type = "var")
 
   # Add year column names to emulator predictions
   colnames(myem$mean) <- paste0("y", years_em)

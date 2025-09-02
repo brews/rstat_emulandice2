@@ -4,6 +4,10 @@
 #' Build emulators of principal components with RobustGaSP.
 #' Based on code by Jonty Rougier.
 #'
+#' @param designX Full dataset design
+#' @param forcingF Full climate timeseries for SVD (optional)
+#' @param responseF Full dataset response
+
 #' @returns `make_emu()` returns an emulator object to use.
 #'
 #' @export
@@ -14,19 +18,19 @@
 
 # Build emulator -----------------------------------------------------------------------
 
-make_emu <- function(designX, responseF, r = NULL, thresh = 0.999) {
+make_emu <- function(designX, responseF, forcingX, r = NULL, thresh = 0.999) {
 
   # ARGUMENTS WHEN CALLED:
-  #    designX <- ice_design_scaled
-  #    responseF <- as.matrix( ice_data[ , paste0("y", years_em) ] )
+  #    designX: e.g. ice_design_scaled
+  #    responseF: e.g. as.matrix( ice_data[ , paste0("y", years_em) ] )
+  #.   forcingX: e.g. temps_all
   #    r <- NULL
   #    thresh <- 0.99
-
-  emu_log_file <- paste0(outdir,out_name,"_", emulator_type, ".log")
 
   cat("_____________________________________\n", file = emu_log_file, append = TRUE)
   cat("make_emu: building emulator...\n", file = emu_log_file, append = TRUE)
 
+  # Check other inputs
   stopifnot(is.matrix(designX))
   m <- nrow(designX)
   d <- ncol(designX)
@@ -36,7 +40,9 @@ make_emu <- function(designX, responseF, r = NULL, thresh = 0.999) {
     stopifnot(r == round(r), 0 < r, r <= n)
   stopifnot(length(thresh) == 1, 0 < thresh, thresh < 1)
 
-  ## SVD
+
+
+  ## SVD of outputs
 
   cc <- colMeans(responseF)
 
@@ -50,12 +56,24 @@ make_emu <- function(designX, responseF, r = NULL, thresh = 0.999) {
   U <- decomp$u[, 1L:r, drop=FALSE]
   Vt <- (decomp$d * t(decomp$v))[1L:r, , drop=FALSE]
 
+  pdf( file = paste0( outdir, out_name, "_SVD_SLE.pdf"),
+       width = 9, height = 5)
+  plot(1:length(scree), scree, type = "b", xlab = "Rank", ylab = "Total variance explained", pch = 20)
+  abline(h=1)
+  abline(h=thresh, lty = 3)
+
+  for (j in 1L:r) {
+    plot(years_em,Vt[ j, ], type = "l", xlab = "Time", ylab = paste("Singular value * right singular vector", j))
+  }
+
+  dev.off()
+
   ## write a message
 
-  cat(sprintf("make_emu: r = %i, scree = %.3f%%\n", r, 100 * scree[r]), file = logfile_build, append = TRUE)
+  cat(sprintf("\nmake_emu build: SLE SVD r = %i, scree = %.3f%%\n", r, 100 * scree[r]), file = emu_log_file, append = TRUE)
 
   ## build emulators, hide output
-  sink(file = emu_log_file)
+  sink(file = emu_log_file, append = TRUE)
 
   if ( emulator_type == "statGP") {
 
@@ -65,13 +83,16 @@ make_emu <- function(designX, responseF, r = NULL, thresh = 0.999) {
     # Drop factors (dummy variable columns)
     if ( include_factors) {
 
-      cat("\nmake_emu: dropping factors from trends:\n", file = emu_log_file, append = TRUE)
-      cat(paste(c(ice_dummy_list, "\n"), collapse = " "), file = emu_log_file, append = TRUE)
+      if (temp_input == "mean") {
+        cat("\nmake_emu build: dropping factors from trends:\n", file = emu_log_file, append = TRUE)
+        cat(paste(c(ice_dummy_list, "\n"), collapse = " "), file = emu_log_file, append = TRUE)
 
-      trendX <- trendX[ , input_cont_list]
+        trendX <- trendX[ , ! colnames(trendX) %in% ice_dummy_list ]
 
-      cat("\nmake_emu: keeping:\n", file = emu_log_file, append = TRUE)
-      cat(paste(c(colnames(trendX), "\n"), collapse = " "), file = emu_log_file, append = TRUE)
+        cat("\nmake_emu build: keeping in trend:\n", file = emu_log_file, append = TRUE)
+        cat(paste(c(colnames(trendX), "\n"), collapse = " "), "\n", file = emu_log_file, append = TRUE)
+
+      }
     }
   }
 
@@ -79,6 +100,7 @@ make_emu <- function(designX, responseF, r = NULL, thresh = 0.999) {
   EMU <- lapply(1L:r, function(j) {
 
     if (emulator_type == "statGP") {
+
       emu_pc <- RobustGaSP::rgasp(design = designX, response = U[, j], trend = cbind(1, trendX),
                                   nugget.est = TRUE , lower_bound = lower_bound,
                                   kernel_type = kernel, alpha = rep(alpha, dim(as.matrix(designX))[2]))
@@ -221,15 +243,40 @@ make_emu <- function(designX, responseF, r = NULL, thresh = 0.999) {
 
   pred_EMU <- function(designXout) {
 
+    if (nrow(designXout) > 1) {
+      multi_sim <- TRUE
+      design_names <- colnames(designXout)
+    } else {
+      multi_sim <- FALSE
+      design_names <- names(designXout)
+    }
+
     if (emulator_type == "statGP") {
 
       # Trends used in RobustGaSP
       trendXout <- designXout
 
-      # Drop any factors from trends
+      cat("\nmake_emu pred: design cols:\n", file = emu_log_file, append = TRUE)
+      cat(paste(design_names, collapse = " "), "\n", file = emu_log_file, append = TRUE)
+
       if ( include_factors) {
-        tt <- which( input_cont_list %in% colnames(ice_design), arr.ind = TRUE )
-        trendXout <- trendXout[ , tt, drop = FALSE]
+        if (temp_input == "mean") {
+
+          # tt <- which( input_cont_list %in% colnames(ice_design), arr.ind = TRUE )
+          # trendXout <- trendXout[ , tt, drop = FALSE]
+
+          cat("\nmake_emu pred: keeping in trend:\n", file = emu_log_file, append = TRUE)
+
+          if (multi_sim) {
+            trendXout <- trendXout[ , ! design_names %in% ice_dummy_list ]
+            cat(paste(colnames(trendXout), collapse = " "), "\n", file = emu_log_file, append = TRUE)
+          } else {
+            trendXout <- trendXout[ ! design_names %in% ice_dummy_list ]
+            cat(paste(names(trendXout), collapse = " "), "\n", file = emu_log_file, append = TRUE)
+            trendXout <- matrix(trendXout, nrow = 1)
+          }
+
+        }
       }
 
       # Predict for set of new design points using each PC emulator in list
@@ -309,15 +356,29 @@ make_emu <- function(designX, responseF, r = NULL, thresh = 0.999) {
 
   ## return a function
 
-  robj <- function(designXout, type = c("mean", "sd", "var", "all")) {
+  robj <- function(designXout, forcingXout, type = c("mean", "sd", "var", "all")) {
+
+    # Get column names
+    if (!is.null(dim(designXout))) {
+      multi_sim <- TRUE
+      design_names <- colnames(designXout)
+    } else {
+      multi_sim <- FALSE
+      design_names <- names(designXout)
+    }
 
     type <- match.arg(type)
+
     if (!is.matrix(designXout) && length(designXout) == d) {
       dim(designXout) <- c(1L, d)
     } else {
       stopifnot(is.matrix(designXout), ncol(designXout) == d)
     }
     m_out <- nrow(designXout)
+
+    # Put names back xxx check when dropped
+    if (multi_sim) { colnames(designXout) <- design_names
+    } else names(designXout) <- design_names
 
     # predictions for r PCs
     pplist <- pred_EMU(designXout) # r-list

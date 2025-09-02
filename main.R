@@ -118,6 +118,7 @@ load( file = emu_file)
 
 # xxx add something about pkl if keeping dgpsi
 
+
 #___________________________________________
 # RESET SOME SETTINGS FOR FACTS
 
@@ -154,6 +155,11 @@ logfile_results <- paste0(outdir_facts, out_name,"_results.txt")
 cat(sprintf("\nemulandice2: %s %s\n\n", i_s, reg), file = logfile_results)
 
 cat(sprintf("\nLoaded emulator file: %s\n", emu_file), file = logfile_results, append = TRUE)
+
+emu_log_file <- paste0(outdir_facts, out_name,"_", emulator_type, ".log")
+cat("______________________________________\n", file = emu_log_file)
+cat("EMULATOR LOG FILE\n\n", file = emu_log_file, append = TRUE)
+cat("______________________________________\n", file = emu_log_file, append = TRUE)
 
 # Sample size for calibration prior distributions
 N_prior <- 10000L
@@ -250,7 +256,7 @@ for (scen in fixed_temp_list) {
   design_fixed_scaled <- as.data.frame( design_fixed[[scen]]  )
   design_fixed_scaled[ , input_cont_list] <- design_fixed_scaled_cont
 
-  myem[[scen]] <- emulator_predict( design_fixed_scaled )
+  if (temp_input == "mean") myem[[scen]] <- emulator_predict( design_fixed_scaled, forcing_prior = "mean" )
 
 }
 
@@ -373,7 +379,7 @@ for (scen in scenario_list) {
 
   # Projections: PRIOR MEAN
   # Returns $mean, $sd, $var
-  myem[[scen]] <- emulator_predict( design_prior_scaled )
+  if (temp_input == "mean") myem[[scen]] <- emulator_predict( design_prior_scaled, forcing_prior = "mean")
 
 }
 
@@ -444,7 +450,7 @@ for (scen in scenario_list) {
 
   # Projections: POSTERIOR MEAN
   # Returns $mean, $sd, $var
-  myem_post[[scen]] <- emulator_predict( design_pred_scaled )
+  if (temp_input == "mean") myem[[scen]] <- myem_post[[scen]] <- emulator_predict( design_pred_scaled, forcing_prior = "mean")
 
 }
 
