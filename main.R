@@ -450,7 +450,7 @@ for (scen in scenario_list) {
 
   # Projections: POSTERIOR MEAN
   # Returns $mean, $sd, $var
-  if (temp_input == "mean") myem[[scen]] <- myem_post[[scen]] <- emulator_predict( design_pred_scaled, forcing_prior = "mean")
+  if (temp_input == "mean") myem_post[[scen]] <- emulator_predict( design_pred_scaled, forcing_prior = "mean")
 
 }
 
