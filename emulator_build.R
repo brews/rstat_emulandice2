@@ -2007,11 +2007,15 @@ if (validation_type == "loo") {
     loo_err <- loo_err[ N_k_index ]
     loo_std_err <- loo_std_err[ N_k_index ]
 
+    euclid_dist <- sqrt( sum( (loo_std_err)^2 , na.rm = TRUE) )
+
     # PRINT RESULTS
     cat(paste("\nLOO VALIDATION:",yy, "\n"), file = logfile_build, append = TRUE)
     cat(sprintf("Coverage (within %i emulator 95%% intervals): %.2f%%\n", yy,
                 frac_right*100.0), file = logfile_build, append = TRUE)
-    cat(sprintf("Mean of %i emulator absolute errors (cm): %.1f\n", yy,
+    cat(sprintf("Standardised Euclidean distance at %s: %.1f\n", yy,
+                euclid_dist), file = logfile_build, append = TRUE)
+    cat(sprintf("\nMean of %i emulator absolute errors (cm): %.1f\n", yy,
                 mean(abs(loo_err))), file = logfile_build, append = TRUE)
     cat(sprintf("Range of %i emulator absolute errors (cm): [%.1f, %.1f]\n", yy,
                 min(loo_err), max(loo_err)),
@@ -2082,12 +2086,15 @@ if (validation_type == "tvt") {
     frac_right <- 1 - ( length(which(test_wrong[[yind]] == TRUE)) / length(test_set) )
     test_err <- test_mean[[yind]] - test_data[ , yind]
     test_std_err <- test_err / test_sd[[yind]]
+    euclid_dist <- sqrt( sum( (test_std_err)^2 , na.rm = TRUE) )
 
     cat(sprintf("\nTRAIN AND TEST VALIDATION (N = %i):", length(test_set)),
         file = logfile_build, append = TRUE)
     cat(sprintf("\nNumber within %s emulator 95%% intervals: %.2f%%\n", yy,
                 frac_right*100.0), file = logfile_build, append = TRUE)
-    cat(sprintf("Mean of %s emulator absolute errors (cm): %.1f\n", yy,
+    cat(sprintf("Standardised Euclidean distance at %s: %.1f\n", yy,
+                euclid_dist), file = logfile_build, append = TRUE)
+    cat(sprintf("\nMean of %s emulator absolute errors (cm): %.1f\n", yy,
                 mean(abs(test_err))), file = logfile_build, append = TRUE)
     cat(sprintf("Range of %s emulator absolute errors (cm): [%.1f, %.1f]\n", yy,
                 min(test_err), max(test_err)),
