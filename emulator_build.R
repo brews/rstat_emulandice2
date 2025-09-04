@@ -270,7 +270,8 @@ if (i_s == "GIS") {
 if (i_s == "GLA") {
 
   # All models (do not change!)
-  model_list_full <- c( "GloGEM", "OGGM") # "GO" )
+  model_list_full <- c( "GloGEM", "OGGM" )
+  if (reg == "RGI19") model_list_full <- c( model_list_full, "GO" ) # xxx add regions when done
 
   # Pick models, or set to model_list_full to use all
   model_list <- model_list_full
@@ -278,10 +279,9 @@ if (i_s == "GLA") {
   # Fraction of glaciers that must have completed (guidance from Fabien Maussion)
   # Selection is done in select_sims()
   # Only OGGM and GO have completion % information, not GloGEM
-  # Some regions only reach ~92% so can't go higher without adjusting
-  # XXX Later change to 0.8 for GO Russian Arctic and AIS peripherals, 0.9 otherwise?
+
   complete_thresh <- 0.95 # NA to not use
-  if (reg == "RGI01") complete_thresh <- 0.80
+  if (reg == "RGI01") complete_thresh <- 0.80 # xxx need OGGM to re-run these?
   if (reg %in% c("RGI16", "RGI18")) complete_thresh <- 0.90
   if (deliverable_test) complete_thresh <- 0.80
 
