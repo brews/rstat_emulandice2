@@ -796,7 +796,7 @@ plot_level <- 2
 stopifnot(plot_level %in% c(0,1,2)) # using plot_level = 3 to distinguish main.R calls
 
 # Write validation and SA RData file for nice replotting later
-write_sa <- TRUE
+write_sa <- FALSE
 
 # Sub-sample to plot; exclude any dates not predicted by emulator
 yy_plot <- c(as.character(cal_end),"2100", "2150", "2200", "2300")
