@@ -6,6 +6,7 @@
 #'
 #' @param designX Full dataset design
 #' @param responseF Full dataset response
+#' @param forcingX Full forcing timeseries (if SVD)
 #' @param year_list List of projection years to do the LOO for.
 #' @param N_k Repeat the LOO for every N_k-th simulation (NA for all)
 #'
@@ -44,9 +45,6 @@ do_loo <- function(designX, responseF, forcingX, year_list, N_k = NA) {
   # LOO function for one simulation (to parallelise)
   loo_test <- function(ss) {
 
-    #cat(paste0("Simulation ", ss,": ", which(sim_list == ss), " of ", length(sim_list),":\n"),
-    #    file = logfile_build, append = TRUE)
-
     emu_mv_loo <- NA
 
     # Fit emulator to all but that one simulation
@@ -64,25 +62,6 @@ do_loo <- function(designX, responseF, forcingX, year_list, N_k = NA) {
     if (temp_input == "mean") emu_one <- emu_mv_loo( designX[ ss, ], type = "sd")
     colnames(emu_one$mean) <- paste0("y", years_em)
     colnames(emu_one$sd) <- paste0("y", years_em)
-
-    # xxx disabled when made function
-    if (FALSE ) {
-
-      # Only save the years requested for the LOO
-      loo_ind <- which(years_em %in% validation_years, arr.ind = TRUE)
-
-      if (nrow(emu_one$mean) == 1) {
-        mean[ss, ] <- emu_one$mean[ loo_ind ]
-        sd[ss, ] <- emu_one$sd[ loo_ind]
-      } else {
-        mean[ss, ] <- emu_one$mean[ , loo_ind ]
-        sd[ss, ] <- emu_one$sd[ , loo_ind]
-      }
-      # mean[ss, ] <- emu_one$mean[ , paste0( "y", year_list) ]
-      # sd[ss, ] <- emu_one$sd[ , paste0( "y", year_list) ]
-    }
-    # }
-    #} for loop
 
     emu_one
 

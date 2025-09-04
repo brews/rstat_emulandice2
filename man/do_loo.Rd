@@ -4,12 +4,14 @@
 \alias{do_loo}
 \title{do_LOO: calculate leave-one-out information.}
 \usage{
-do_loo(designX, forcingX, responseF, year_list, N_k = NA)
+do_loo(designX, responseF, forcingX, year_list, N_k = NA)
 }
 \arguments{
 \item{designX}{Full dataset design}
 
 \item{responseF}{Full dataset response}
+
+\item{forcingX}{Full forcing timeseries (if SVD)}
 
 \item{year_list}{List of projection years to do the LOO for.}
 
