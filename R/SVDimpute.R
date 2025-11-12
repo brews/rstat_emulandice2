@@ -6,7 +6,7 @@
 #' @param X numeric matrix containing missing values as `NA`.
 #' @param k rank of approximation to `X`.
 #' @param pmin minimum proportional variation, used to set `k` if `k = NULL`, see Details.
-#' @param maxit maxium number of iterations.
+#' @param maxit maximum number of iterations.
 #'
 #' @returns A matrix like `X` but with the `NA`s imputed, plus an attribute `"param"`, a list with `pmin`, `k`, and `rank` if `maxit > 0`.
 #'
