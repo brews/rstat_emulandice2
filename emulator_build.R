@@ -191,6 +191,7 @@ print("Hello! Welcome to emulandice2: build")
 print("************************************************************************************************")
 
 print(paste(ice_name,"region",reg))
+if (read_sims_only) print("ONLY READING SIMULATIONS")
 if (validation_type == "loo") {
   print(paste("LOO with N_k =",N_k,"(could be very slow)"))
 }
@@ -231,7 +232,7 @@ if (deliverable_test) scenario_list <- c("SSP119", "SSP126", "SSP245", "SSP370",
 if (i_s == "AIS") {
 
   # All models (do not change!)
-  model_list_full <- c( "Kori", "PISM", "CISM", "ElmerIce", "BISICLES", "IMAUICE" )
+  model_list_full <- c( "Kori", "PISM", "CISM", "ElmerIce", "BISICLES", "IMAUICE", "UFEMISM" )
   if (deliverable_test) model_list_full <- c( "Kori", "PISM", "CISM", "ElmerIce" )
 
   # Would drop short simulations anyway but early on is better for emulator inputs
@@ -408,7 +409,7 @@ if (i_s == "AIS") {
 
   # Dates to use later
   if ( final_year > 2150) { cal_start <- 1979
-  } else cal_start <- 1996 # CISM 1996; Elmer/ice 2000; BISICLES starts in 2007; IMAUICE in 2014
+  } else cal_start <- 1996 # CISM 1996; Elmer/ice 2000; BISICLES starts in 2007; IMAUICE in 1950
 
   if (deliverable_test) cal_start <- 2000
 }
@@ -574,12 +575,12 @@ if (i_s == "AIS") {
   if ( ensemble_subset == "RCM_forced" ||
        (ensemble_subset == "all_forced" && final_year <= 2200) ) {
     ice_cont_list_model[["PISM"]] <- c(ice_cont_list_model[["PISM"]],
-                                       "overturning_PICO",
-                                       "tillwater_decay_rate",
-                                       "eff_fraction_overburden_pressure")
-  }
+                                       "overturning_PICO") } # probably already added
+#                                       "tillwater_decay_rate",
+#                                       "eff_fraction_overburden_pressure")
+#  }
 
-  # PISM different resolution between the two
+  # PISM different resolution between the two xxx
   if ( ensemble_subset == "all_forced" && final_year <= 2200 ) {
     ice_cont_list_model[["PISM"]] <- c(ice_cont_list_model[["PISM"]],
                                        "resolution")
@@ -606,6 +607,9 @@ if (i_s == "AIS") {
 
   # IMAUICE
   ice_factor_list_model[["IMAUICE"]] <- "GIA"
+
+  # UFEMISM - ensemble also changes init method but not used in emulator
+  ice_cont_list_model[["UFEMISM"]] <- "resolution"
 
   # Combine model lists
   ice_cont_list <- NA
@@ -639,9 +643,18 @@ if (i_s == "AIS") {
     ice_factor_list <- c(ice_factor_list, "RCM")
   }
 
-
   # Add model switch and GCM vs RCM-forced factor:
   if ( length(model_list) > 1 ) ice_factor_list <- c(ice_factor_list, "model")
+
+  # Option to drop columns
+  #drop_list <- c("init_atmos", "init_ocean", "refreeze", "PDD_ice", "PDD_snow",
+  #               "sliding_exponent", "overturning_PICO",
+  #               "forcing_type")
+  #cat("Dropping these inputs if present for parsimony:", paste(drop_list, collapse = ", "), "\n",
+  #    file = logfile_build, append = TRUE)
+  #ice_cont_list <- ice_cont_list[ ! ice_cont_list %in% drop_list ]
+  #ice_factor_list <- ice_factor_list[ ! ice_factor_list %in% drop_list ]
+
 
 }
 
@@ -796,7 +809,7 @@ plot_level <- 2
 stopifnot(plot_level %in% c(0,1,2)) # using plot_level = 3 to distinguish main.R calls
 
 # Write validation and SA RData file for nice replotting later
-write_sa <- FALSE
+write_sa <- TRUE
 
 # Sub-sample to plot; exclude any dates not predicted by emulator
 yy_plot <- c(as.character(cal_end),"2100", "2150", "2200", "2300")
@@ -1638,8 +1651,15 @@ if (impute_sims != "none") {
             main = ice_name)
 
     # Imputed values (where original had NA)
-    matlines(years_em, t(ice_data_impute[ miss_sims, ]),
-             type = "l", col = "red", lty = 1, lwd = 0.5)
+    # If only imputed 1 simulation, don't transpose
+    if (sum(num_miss) == 1) {
+      matlines(years_em, ice_data_impute[ miss_sims, ],
+               type = "l", col = "red", lty = 1, lwd = 0.5)
+    } else {
+      matlines(years_em, t(ice_data_impute[ miss_sims, ]),
+               type = "l", col = "red", lty = 1, lwd = 0.5)
+    }
+
     # Simulated values
     matlines(years_em, t(ice_data_proj[ miss_sims, ]),
              type = "l", col = "black", lty = 1, lwd = 0.5)
@@ -1648,13 +1668,24 @@ if (impute_sims != "none") {
 
     # Zoom AIS historical xxx change ylim so can plot for any
     if (i_s == "AIS" ) {
+
       pdf( file = paste0( outdir, out_name, "_impute_zoom.pdf"), width = 9, height = 5)
+
       matplot(years_em, t(ice_data_impute), type = "n", xlim = c(1970,2100),
               ylim = c(-20,50), col = grey(0.1, 0.1), lty = 1,
               xlab = "Year", ylab = "Sea level contribution (cm SLE)",  main = ice_name)
       abline(v=2014, lwd=0.5, lty=3)
-      matlines(years_em, t(ice_data_impute[ miss_sims, ]),type = "l", col = "red", lty = 1, lwd = 0.5)
+
+      # As above
+      if (sum(num_miss) == 1) {
+        matlines(years_em, ice_data_impute[ miss_sims, ],
+                 type = "l", col = "red", lty = 1, lwd = 0.5)
+      } else {
+        matlines(years_em, t(ice_data_impute[ miss_sims, ]),
+                 type = "l", col = "red", lty = 1, lwd = 0.5)
+      }
       matlines(years_em, t(ice_data_proj[ miss_sims, ]),type = "l", col = "black", lty = 1, lwd = 0.5)
+
       dev.off()
     }
 
@@ -1676,7 +1707,7 @@ ice_data <- emulandice2::calculate_sle_anom(ice_data, baseline=cal_start)
 
 # Sims only for testing: stop here
 #save.image(file="~/PROTECT/emulandice2/sims_impute.RData")
-if ( read_sims_only) stop("Stopping after reading and plotting simulations", call. = FALSE)
+if ( read_sims_only) stop("Stopping after reading and plotting simulations (not an error!)", call. = FALSE)
 
 # ________________----
 #' # Build emulator
@@ -2232,7 +2263,7 @@ cat(paste("\nSaved emulator object to RData file:",emu_file,"\n"), file = logfil
 if (write_sa) {
 
   # Main effects projections
-  to_save_sa <- c("design_sa", "myem")
+  to_save_sa <- c("design_sa", "myem", "validation_years", "validation_type")
 
   # LOO validation results
   if (validation_type == "loo") {
