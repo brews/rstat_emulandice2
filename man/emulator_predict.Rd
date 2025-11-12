@@ -4,7 +4,7 @@
 \alias{emulator_predict}
 \title{emulator_predict: Emulator predictions for design}
 \usage{
-emulator_predict(design_prior, forcing_prior)
+emulator_predict(design_prior, forcing_prior = "mean")
 }
 \arguments{
 \item{design_prior}{Design for projections, i.e. sampled priors on all inputs.}
