@@ -136,7 +136,7 @@ set.seed(seed)
 plot_level <- 2
 
 # Write workspace to .RData for nice plotting later xxx just save some objects
-write_rdata <- FALSE
+write_rdata <- TRUE
 
 # Number of 2LM projections of GSAT expected per SSP
 # (and therefore total number of samples for book-keeping by GSAT value)
