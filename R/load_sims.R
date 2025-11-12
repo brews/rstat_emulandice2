@@ -23,15 +23,15 @@ load_sims <- function(variable, source = NA, region = NA) { # dataset
     # xxx Mira email 9th May 2023 about 230508 file: small discrepancies HadGEM2-ES Cecile
     # xxx Hatchet job 230618 merging Vio's 2300 file missing data
     if (variable == "climate") {
-      data_file <- paste0( inputs_preprocess, "/GSAT/CLIMATE_FORCING_250119.csv") # IPSL OS, GIS OS-recon
+      data_file <- paste0( inputs_preprocess, "/GSAT/CLIMATE_FORCING_251030.csv")
       if (deliverable_test) data_file <- paste0( inputs_preprocess, "/GSAT/CLIMATE_FORCING_240127.csv")
 
       # Read csv
       data_csv <- read.csv(data_file)
     }
 
-    # Land ice simulations: results from PROTECT!
-    # GLA are in mm, ice shets are cm... xxx put this in filename when fixing abs values
+    # Land ice simulations from PROTECT
+    # GLA are in mm SLE, ice sheets are m SLE (units in file name)
     if (variable == "ice") {
 
       if (source == "GIS") {
@@ -40,8 +40,7 @@ load_sims <- function(variable, source = NA, region = NA) { # dataset
       }
 
       if (source == "AIS") {
-        # ALL file is sum of all Zwally regions, not ZWALLY00 file from modellers - very small differences
-        data_file <- paste0( inputs_preprocess, "/AIS/AIS_SIMULATIONS_", region, "_m_SLE_2014_250808.csv")
+        data_file <- paste0( inputs_preprocess, "/AIS/AIS_SIMULATIONS_", region, "_m_SLE_2014_251102.csv")
         if (deliverable_test) data_file <- paste0( inputs_preprocess, "/AIS/SLE_SIMULATIONS_AIS_full_ZWALLY00_240306.csv")
       }
 
