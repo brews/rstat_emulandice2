@@ -1164,10 +1164,6 @@ climate_data_test <- apply(match_sims, 1, function(x) { # as in match_gcms()
 
 # Ugh: convert list to numeric matrix...
 tmp <- matrix(0.0, nrow = nrow(match_sims), ncol = ncol(climate_data) - 2)
-#print(dim(tmp))
-#print(nrow(match_sims))
-#print(ncol(climate_data))
-#print(length(climate_data_test))
 
 for ( cc in 1:length(climate_data_test)) {
   if (nrow(climate_data_test[[cc]][, 3:dim(climate_data)[2]]) == 0 ) {
@@ -1996,6 +1992,7 @@ if (validation_type == "loo") {
   # Test every N_k-th run
   # this is the slow bit....
   # xxx Improve: stratified by output value instead of every N_k
+  # LOO is only predicted for individual years, so emu predict function call is "sd" not "var"
   if (temp_input == "mean") loo_valid_all <- emulandice2::do_loo( designX = as.matrix(Xtrain),
                                                                   responseF = as.matrix(Ytrain),
                                                                   year_list = validation_years,
@@ -2080,9 +2077,11 @@ if (validation_type == "tvt") {
   test_set <- reordered[-(1:target_size)]
 
   # Predict for all the original design points not in the training set
+  # using main emulator build (emu_mv)
   # Note inputs are already scaled
   # ice_design_scaled has same number of rows as ice_data
   # xxx ice_design_scaled is also called XX?
+  # This predicts full time series so could plot these xxx
   emu_test <- emulandice2::emulator_predict( ice_design_scaled[ test_set, ], forcing_prior = "mean" )
 
   # Unlike LOO, should be no missing data in these: i.e. values for all test sims
@@ -2134,8 +2133,9 @@ if (validation_type == "tvt") {
 
     # Plot: train and test --------
     # Plot train and test results
-    yrange <- range(c(test_mean[[yind]] - 4*test_sd[[yind]],
-                      test_mean[[yind]] + 4*test_sd[[yind]]), na.rm = TRUE)
+    #yrange <- range(c(test_mean[[yind]] - 4*test_sd[[yind]],
+    #                  test_mean[[yind]] + 4*test_sd[[yind]]), na.rm = TRUE)
+    yrange <- sle_lim[[as.character(yy)]]
 
     pdf( file = paste0( outdir, out_name, "_VALIDATION_", yy, ".pdf"),
          width = 5, height = 5)
@@ -2201,14 +2201,14 @@ to_save <- c("climate_data", # CLIMATE MODEL SIMULATION DATA
              "model_list", # Could reconstruct from filename, but useful to have
              "scen_name", # Nicely formatted lookup name list of all scenarios looked for in datas
              "years_sim", # List of simulated years
-             "ice_design", # Simulation ensemble design, i.e. input values
-             "ice_param_list_full", # Lists of all simulated inputs
-             "ice_cont_list", "ice_factor_list", "ice_all_list", # Lists of emulated inputs: continuous, factors, all
+             "ice_param_list_full", # Lists of all ice model simulated inputs
+             "ice_design", # Simulation ensemble design, i.e. ice model input values
+             "ice_cont_list", "ice_factor_list", "ice_all_list", # Lists of ice emulated inputs: continuous, factors, all
              "ice_dummy_list", "ice_factor_values", # Dummy column names and values for factor inputs
              "N_temp_yrs", # GSAT mean years; used in priors
              "temp_input", # Using GSAT means or SVD
              "temps", "temps_baseline", "temps_list", "temps_list_names", # GSAT means and names used
-             "input_cont_list", # List of emulated continuous inputs, i.e. c(temps_list_names, ice_cont_list)
+             "input_cont_list", # List of all emulated continuous inputs, i.e. c(temps_list_names, ice_cont_list)
              "emulator_type",
              "emu_mv", # EMULATOR! function object
              "include_factors", "scree_thresh", # Are there any factors; scree threshold
@@ -2258,8 +2258,9 @@ cat(paste("\nSaved emulator object to RData file:",emu_file,"\n"), file = logfil
 
 if (write_sa) {
 
-  # Main effects projections
-  to_save_sa <- c("design_sa", "myem", "validation_years", "validation_type")
+  # Main effects and uniform designs; emulator SA predictions for these; validation years
+  to_save_sa <- c( "design_sa", "design_pred", "myem", "validation_years", "validation_type",
+                   "ice_design_scaled", "design_pred_scaled", "emu_test" ) # xxx for testing
 
   # LOO validation results
   if (validation_type == "loo") {
