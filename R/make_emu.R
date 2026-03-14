@@ -75,6 +75,141 @@ make_emu <- function(designX, responseF, forcingX, r = NULL, thresh = 0.999) {
   ## build emulators, hide output
   sink(file = emu_log_file, append = TRUE)
 
+  # Model selection -----------------------------------------------------------------------
+  # Use lasso regression to drop inert inputs (beta coefficients zero)
+
+  coef_tol <- 1e-12 # for selecting zero coefficients
+  x_vars <- designX # xxx no need - replace
+  x_names <- colnames(x_vars)
+
+  # Categorical colours to plot beta for each PC
+  beta_palette <- hcl.colors(r+1, palette = "Blues 3", alpha = 0.8)
+  # Ditch white at end
+  beta_palette <- beta_palette[1:r]
+
+  # Loop through PCs, finding all active inputs with lasso regression of U[,j] ~ designX
+  beta <- lapply(1L:r, function(j) {
+
+    cat(sprintf("\nModel selection for PC%i\n\n", j), file = emu_log_file, append = TRUE)
+
+    # First estimate regularisation penalties for all models using cross-validation
+    # Linear models only (no interactions, squared terms); alpha = 1 is lasso
+    cv_model <- glmnet::cv.glmnet(x_vars, U[,j], alpha = 1)
+
+    # Plot all lambdas - shows minimum lambda and 1 s.e. from minimum
+    pdf( file = paste0( outdir, out_name, "_lambda_CV_PC",j,".pdf"), width = 9, height = 5)
+    plot(cv_model, main = paste0("Regularisation term for PC", j))
+    dev.off()
+
+    # Take minimum lambda as the best penalty value
+    cat(sprintf("Best lambda for regularisation = %.6f\n\n", cv_model$lambda.min),
+        file = emu_log_file, append = TRUE)
+
+    # Now predict model using this lambda value to get coefficient estimates
+    best_model <- predict(cv_model, x_vars, s = "lambda.min", type = "coefficients")
+    all_coef <- best_model[ 2:(ncol(x_vars)+1), "lambda.min"]
+    names(all_coef) <- x_names
+
+    # Print all coefficients to log file
+    cat("\nEstimated regression coefficients: \n\n", file = emu_log_file, append = TRUE)
+    for (cc in 1:length(x_names)) {
+      cat(x_names[cc],"\t", all_coef[cc], "\n", file = emu_log_file, append = TRUE)
+    }
+    cat("\n", file = emu_log_file, append = TRUE)
+
+    # Names of inputs with non-zero coefficients
+    keep_inputs_PC <- x_names[ abs(all_coef) > coef_tol ]
+    cat(sprintf("Terms active for PC%i: \n", j), file = emu_log_file, append = TRUE)
+    cat(keep_inputs_PC,"\n\n", file = emu_log_file, append = TRUE)
+
+    # Assign colours to symbols for plot
+    sym_fill <- rep("lightgrey", length(x_names))
+    sym_fill[ x_names %in% keep_inputs_PC ] <- beta_palette[j]
+
+    # Plot all coefficients
+    pdf( file = paste0( outdir, out_name, "_beta_coef_PC",j,".pdf"),
+         width = length(x_names) + 1, height = 5)
+    par(mar = c(10, 4, 4, 2) + 0.1)
+
+    plot( 1:length(x_names), as.numeric(all_coef), xlab = " ", ylab = "Beta",
+          main = paste0("Beta coefficients of possible inputs for best emulator of PC", j),
+          xaxt = "n", pch = 21, cex = 1.7, col = sym_fill, bg = sym_fill)
+    axis(side = 1, at = 1:length(x_names), labels = x_names, las = 2)
+    abline(h=0, col = grey(0.5,0.8))
+    dev.off()
+
+    # Return all beta coefficients for this PC
+    all_coef
+
+  }) # PC loop
+
+  # Print and plot
+  cat("Table of all beta values:\n\n", file = emu_log_file, append = TRUE)
+  names(beta) <- paste0("PC",1:r)
+  cat("PC", x_names, "\n\n", file = emu_log_file, append = TRUE)
+  for (ll in 1:length(beta)) {
+    cat(names(beta)[ll], " ", paste(beta[[ll]], collapse = " "), "\n", file = emu_log_file, append = TRUE)
+  }
+  cat("\n\n", file = emu_log_file, append = TRUE)
+
+  # Plot betas for all PCs (reverse order so temp at top)
+  pdf( file = paste0( outdir, out_name, "_beta_coef_ALL.pdf"),
+       height = length(x_names) + 1, width = 5)
+  par(mar = c(5, 10, 4, 2))
+  xmax <- max( abs(range(beta)) )
+  plot( as.numeric(beta[[1]]), 1:length(x_names), xlim = xmax * c(-2,2),
+        type = "n", yaxt = "n",
+        xlab = "Beta", ylab = " ", main = "Beta coefficients: all PCs")
+  axis(side = 2, at = 1:length(x_names), labels = rev(x_names), las = 2) # reversed
+  abline(v=0, col = grey(0.5,0.2))
+
+  # For each PC
+  legy <- 1 # length(x_names) - r * 0.025*length(x_names)
+
+  for (j in (r):1) {
+
+    # Reverse to put GSAT at top
+    to_plot <- rev(as.numeric(beta[[j]]))
+    sym_fill <- rep(NA, length(x_names))
+    sym_fill[ abs( to_plot ) > coef_tol ] <- beta_palette[j]
+    points( to_plot, 1:length(x_names), pch = 21, cex = 1.7,
+            col = beta_palette[j], bg = sym_fill )
+    points( -1.2*xmax, legy, pch = 21, cex = 1.1,
+            col = beta_palette[j], bg = beta_palette[j] )
+    text( -1.2*xmax, legy, pos = 2, paste0("PC", j))
+    legy <- legy + 0.025*length(x_names)
+
+  }
+  dev.off()
+
+  # Return terms with beta > tolerance
+  keep_inputs_pc <- lapply(beta, function(bb) {
+    x_names[ abs(bb) > coef_tol ]
+
+  })
+
+  # Output terms in alphabetical order (to match plot)
+  keep_inputs <- unique(unlist(keep_inputs_pc))
+
+  n_drop <- length(x_names) - length(keep_inputs)
+
+  # if (FALSE) { # don't drop for now
+  if ( n_drop > 0 ) {
+    cat("\nEmulator dropped these", n_drop, "inert inputs:\n", file = emu_log_file, append = TRUE)
+    cat( sort(setdiff(x_names, keep_inputs)), "\n", file = emu_log_file, append = TRUE)
+
+    cat("\nBefore:\n", file = emu_log_file, append = TRUE)
+    cat(colnames(designX),"\n", file = emu_log_file, append = TRUE)
+
+    # DROP INPUTS FROM DESIGN
+    designX <- designX[ , colnames(designX) %in% keep_inputs ]
+
+    cat("\nAfter:\n", file = emu_log_file, append = TRUE)
+    cat(colnames(designX),"\n", file = emu_log_file, append = TRUE)
+
+  }
+  #}
+
   if ( emulator_type == "statGP") {
 
     # Get all inputs for trends in RobustGaSP
@@ -84,13 +219,13 @@ make_emu <- function(designX, responseF, forcingX, r = NULL, thresh = 0.999) {
     if ( include_factors) {
 
       if (temp_input == "mean") {
-        cat("\nmake_emu build: dropping factors from trends:\n", file = emu_log_file, append = TRUE)
-        cat(paste(c(ice_dummy_list, "\n"), collapse = " "), file = emu_log_file, append = TRUE)
+          cat("\nmake_emu build: dropping factors from trends:\n", file = emu_log_file, append = TRUE)
+          cat(paste(c(ice_dummy_list, "\n"), collapse = " "), file = emu_log_file, append = TRUE)
 
-        trendX <- trendX[ , ! colnames(trendX) %in% ice_dummy_list ]
+          trendX <- trendX[ , ! colnames(trendX) %in% ice_dummy_list ]
 
-        cat("\nmake_emu build: keeping in trend:\n", file = emu_log_file, append = TRUE)
-        cat(paste(c(colnames(trendX), "\n"), collapse = " "), "\n", file = emu_log_file, append = TRUE)
+          cat("\nmake_emu build: keeping in trend:\n", file = emu_log_file, append = TRUE)
+          cat(paste(c(colnames(trendX), "\n"), collapse = " "), "\n", file = emu_log_file, append = TRUE)
 
       }
     }
@@ -256,28 +391,89 @@ make_emu <- function(designX, responseF, forcingX, r = NULL, thresh = 0.999) {
       # Trends used in RobustGaSP
       trendXout <- designXout
 
-      cat("\nmake_emu pred: design cols:\n", file = emu_log_file, append = TRUE)
+      cat("\nmake_emu pred: requested input cols for prediction(s):\n", file = emu_log_file, append = TRUE)
       cat(paste(design_names, collapse = " "), "\n", file = emu_log_file, append = TRUE)
 
       if ( include_factors) {
         if (temp_input == "mean") {
 
-          # tt <- which( input_cont_list %in% colnames(ice_design), arr.ind = TRUE )
-          # trendXout <- trendXout[ , tt, drop = FALSE]
+            # tt <- which( input_cont_list %in% colnames(ice_design), arr.ind = TRUE )
+            # trendXout <- trendXout[ , tt, drop = FALSE]
 
-          cat("\nmake_emu pred: keeping in trend:\n", file = emu_log_file, append = TRUE)
+            cat("\nmake_emu pred: keeping in trend:\n", file = emu_log_file, append = TRUE)
 
-          if (multi_sim) {
-            trendXout <- trendXout[ , ! design_names %in% ice_dummy_list ]
-            cat(paste(colnames(trendXout), collapse = " "), "\n", file = emu_log_file, append = TRUE)
-          } else {
-            trendXout <- trendXout[ ! design_names %in% ice_dummy_list ]
-            cat(paste(names(trendXout), collapse = " "), "\n", file = emu_log_file, append = TRUE)
-            trendXout <- matrix(trendXout, nrow = 1)
-          }
+            if (multi_sim) {
+              trendXout <- trendXout[ , ! design_names %in% ice_dummy_list ]
+              cat(paste(colnames(trendXout), collapse = " "), "\n", file = emu_log_file, append = TRUE)
+            } else {
+              trendXout <- trendXout[ ! design_names %in% ice_dummy_list ]
+              cat(paste(names(trendXout), collapse = " "), "\n", file = emu_log_file, append = TRUE)
+              save_names <- names(trendXout)
+
+              # Make into 1 x ncol matrix again
+              trendXout <- matrix(trendXout, nrow = 1)
+              names(trendXout) <- save_names
+
+            }
 
         }
+      } # if include_factors
+
+      # Original list of inputs before lasso drops inert
+      cat("\nmake emu pred: original list of inputs:\n", file = emu_log_file, append = TRUE)
+      cat("GP (",ncol(designXout),"):", paste(colnames(designXout), collapse = " "),"\n", file = emu_log_file, append = TRUE)
+      cat("GP:", paste(names(designXout), collapse = " "),"\n", file = emu_log_file, append = TRUE) # for factors in GP
+
+      if (multi_sim) {
+        cat("Trends (",ncol(trendXout),"):", paste(colnames(trendXout), collapse = " "),"\n", file = emu_log_file, append = TRUE)
+      } else {
+        cat("Trends (",ncol(trendXout),"):", paste(names(trendXout), collapse = " "),"\n", file = emu_log_file, append = TRUE)
       }
+
+      cat("\n\nmake emu pred: checking for inert inputs...\n", file = emu_log_file, append = TRUE)
+
+      # Drop inert inputs
+      if (multi_sim) {
+
+        designXout <- designXout[ , colnames(designXout) %in% keep_inputs ]
+        trendXout <- trendXout[ , colnames(trendXout) %in% keep_inputs ]
+
+      } else {
+
+        save_names_all <- colnames(designXout)
+        #designXout <- designXout[ colnames(designXout) %in% keep_inputs ] # comment out when drop factors GP
+        trendXout <- trendXout[ names(trendXout) %in% keep_inputs ]
+
+        # Reformat as matrix
+        # Drop names by hand for designXout as can't retrieve from names/colnames
+        save_names <- save_names_all[ save_names_all %in% keep_inputs]
+#        designXout <- matrix(designXout, nrow = 1) # ditto
+#        colnames(designXout) <- save_names # ditto
+
+        # xxx TEST: when drop factors from trends
+        cat(save_names_all, "\n", file = emu_log_file, append = TRUE)
+        cat(save_names, "\n", file = emu_log_file, append = TRUE)
+        designXout <- designXout[ names(designXout) %in% keep_inputs ]
+        designXout <- matrix(designXout, nrow = 1)
+        names(designXout) <- save_names
+
+        save_names <- names(trendXout)
+        trendXout <- matrix(trendXout, nrow = 1)
+        colnames(trendXout) <- save_names
+
+      }
+
+      # Output active inputs for prediction
+      cat("\nmake emu pred: keeping only active inputs in emulator design:\n",
+          file = emu_log_file, append = TRUE)
+      cat("GP final (",ncol(designXout),"):", paste(colnames(designXout), collapse = " "),"\n", file = emu_log_file, append = TRUE)
+      cat("GP:", paste(names(designXout), collapse = " "),"\n", file = emu_log_file, append = TRUE) # for factors in GP
+      cat("Trends final (",ncol(trendXout),"):", paste(colnames(trendXout), collapse = " "),"\n\n", file = emu_log_file, append = TRUE)
+
+      # Moved Jonty's ncol check for designXout from start of robj to here, and add for trendXout to be sure
+      # cat(ncol(designXout), ncol(trendXout), EMU[[1]]@p, ncol(EMU[[1]]@X) - 1, "\n", file = emu_log_file, append = TRUE)
+      stopifnot(ncol(designXout) == EMU[[1]]@p) # @p GP inputs in PC1 emulator build
+      stopifnot(ncol(trendXout) == ncol(EMU[[1]]@X) - 1) # @X: Trends in PC1 emulator build (drop col of 1s)
 
       # Predict for set of new design points using each PC emulator in list
       EMU_pred <- lapply(EMU, function(emu) {
@@ -372,7 +568,8 @@ make_emu <- function(designX, responseF, forcingX, r = NULL, thresh = 0.999) {
     if (!is.matrix(designXout) && length(designXout) == d) {
       dim(designXout) <- c(1L, d)
     } else {
-      stopifnot(is.matrix(designXout), ncol(designXout) == d)
+      # dropped ncol check because requested design might include extra (inert) inputs
+      stopifnot(is.matrix(designXout)) # ncol(designXout) == d)
     }
     m_out <- nrow(designXout)
 
@@ -426,7 +623,7 @@ make_emu <- function(designX, responseF, forcingX, r = NULL, thresh = 0.999) {
     Sx <- aperm(Sx, c(3, 1, 2))  # m_out x n*n
 
     # Default is to return mean, sd and var
-    return(list(mean = mx, sd = sdx, var = Sx))
+    return(list(mean = mx, sd = sdx, var = Sx, inputs = keep_inputs))
   }
 
   ## class and return

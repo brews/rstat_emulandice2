@@ -16,6 +16,7 @@ Imports:
     methods,
     mvtnorm,
     ncdf4,
+    glmnet,
     RobustGaSP
 Suggests:
     deepgp,

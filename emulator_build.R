@@ -572,9 +572,9 @@ if (i_s == "AIS") {
        (ensemble_subset == "all_forced" && final_year <= 2200) ) {
     ice_cont_list_model[["PISM"]] <- c(ice_cont_list_model[["PISM"]],
                                        "overturning_PICO") } # probably already added
-#                                       "tillwater_decay_rate",
-#                                       "eff_fraction_overburden_pressure")
-#  }
+  #                                       "tillwater_decay_rate",
+  #                                       "eff_fraction_overburden_pressure")
+  #  }
 
   # PISM different resolution between the two xxx
   if ( ensemble_subset == "all_forced" && final_year <= 2200 ) {
@@ -643,13 +643,13 @@ if (i_s == "AIS") {
   if ( length(model_list) > 1 ) ice_factor_list <- c(ice_factor_list, "model")
 
   # Option to drop columns
-  #drop_list <- c("init_atmos", "init_ocean", "refreeze", "PDD_ice", "PDD_snow",
-  #               "sliding_exponent", "overturning_PICO",
-  #               "forcing_type")
-  #cat("Dropping these inputs if present for parsimony:", paste(drop_list, collapse = ", "), "\n",
-  #    file = logfile_build, append = TRUE)
-  #ice_cont_list <- ice_cont_list[ ! ice_cont_list %in% drop_list ]
-  #ice_factor_list <- ice_factor_list[ ! ice_factor_list %in% drop_list ]
+  # drop_list <- c("init_atmos", "init_ocean", "refreeze", "PDD_ice", "PDD_snow",
+  #                 "sliding_exponent", "overturning_PICO",
+  #                 "forcing_type")
+  #  cat("Dropping these inputs if present for parsimony:", paste(drop_list, collapse = ", "), "\n",
+  #      file = logfile_build, append = TRUE)
+  #  ice_cont_list <- ice_cont_list[ ! ice_cont_list %in% drop_list ]
+  #  ice_factor_list <- ice_factor_list[ ! ice_factor_list %in% drop_list ]
 
 
 }
@@ -1870,10 +1870,92 @@ cat("______________________________________\n", file = emu_log_file, append = TR
 # Design continuous inputs are scaled
 
 # Emulate using all columns (i.e. GSAT means)
-if (temp_input == "mean") emu_mv <- emulandice2::make_emu( designX = as.matrix(Xtrain),
-                                                           responseF = as.matrix(Ytrain),
-                                                           thresh = scree_thresh)
-#save.image(file="~/PROTECT/emulandice2/make_emu.RData")
+if (temp_input == "mean") {
+  emu_mv <- emulandice2::make_emu( designX = as.matrix(Xtrain),
+                                   responseF = as.matrix(Ytrain),
+                                   thresh = scree_thresh)
+
+  # save.image(file="~/PROTECT/emulandice2/make_emu.RData")
+
+  # Get number of inputs in trend
+  emu_inputs <- emu_mv( Xtrain[ 1, ], type = "var")$inputs
+
+  # Drop inert inputs not used for emulation from design, for plots etc
+  if (length(emu_inputs) < length(colnames(Xtrain))) {
+
+
+    cat("\nEmulator dropped", length(colnames(Xtrain)) - length(emu_inputs),
+        "inert inputs from design:", setdiff(colnames(Xtrain), emu_inputs), "\n",
+        file = logfile_build, append = TRUE)
+
+
+    print("Before")
+
+    # Used in validation, main effects design
+    # Can compare directly with emu_inputs because same origin (dummy levels; don't include reference level)
+    Xtrain <- Xtrain[ , colnames(Xtrain) %in% emu_inputs]
+    ice_design <- ice_design[ , colnames(ice_design) %in% emu_inputs]
+    ice_design_scaled <- ice_design_scaled[ , colnames(ice_design_scaled) %in% emu_inputs]
+
+    # Continuous or dummy inputs used in predictions
+    # Can also compare with emu_inputs directly
+    print(ice_all_list)
+    inputs_centre <- inputs_centre[ names(inputs_centre) %in% emu_inputs ]
+    inputs_scale <- inputs_scale[ names(inputs_scale) %in% emu_inputs ]
+    ice_cont_list <- ice_cont_list[ ice_cont_list %in% emu_inputs ]
+    ice_all_list <- ice_all_list[ ice_all_list %in% emu_inputs ]
+    ice_dummy_list <- ice_dummy_list[ ice_dummy_list %in% emu_inputs ]
+    input_cont_list <- input_cont_list[ input_cont_list %in% emu_inputs ]
+
+    # Factor values - need to be more careful so don't drop nominal
+    #print("Before")
+    print(ice_factor_values)
+    ice_factor_values_new <- ice_factor_values
+
+    # Loop through factors
+    for (ff in names(ice_factor_values)) {
+
+      # Loop through levels of this factor, starting at 2 as first value is nominal
+      for (vv in 2:length(ice_factor_values[[ff]])) {
+
+        # If factor:level is not in inputs
+        factor_level <- paste(ff, ice_factor_values[[ff]][vv], sep=":")
+
+        if ( ! factor_level %in% emu_inputs ) {
+          print(paste("factor:level", factor_level, "is not in emulator inputs" ))
+          # Drop from values
+          ice_factor_values_new[[ff]] <- ice_factor_values_new[[ff]][ ice_factor_values_new[[ff]] != ice_factor_values_new[[ff]][vv] ]
+          #    print(ice_factor_values_new[[ff]])
+        }
+      }
+
+      # If all levels of a factor dropped, drop from factor list for designs/plots
+      # and from names of factor value list
+      # 2 for reference + any remaining xxx is this OK
+      if (length(ice_factor_values_new[[ff]]) == 2 && anyNA(ice_factor_values_new[[ff]])) {
+        print(paste("Drop", ff, "from factor list because all dummy (non-reference) levels dropped"))
+        ice_factor_list <- ice_factor_list[ ice_factor_list != ff]
+        ice_factor_values_new <- ice_factor_values_new[ names(ice_factor_values_new) != ff ]
+        stopifnot(names(ice_factor_values_new) == ice_factor_list)
+      }
+    }
+    ice_factor_values <- ice_factor_values_new
+
+    print("After")
+    print(ice_all_list)
+    print(ice_factor_values)
+
+    #cat(paste(ice_factor_list, collapse = " "),"\n", file = logfile_build, append = TRUE)
+
+    cat("\nSo now we have",length(emu_inputs),"inputs as follows:\n", file = logfile_build, append = TRUE)
+    cat(paste(colnames(Xtrain), collapse = " "),"\n", file = logfile_build, append = TRUE)
+
+  } else {
+    cat("\nEmulator dropped no inert inputs\n", file = logfile_build, append = TRUE)
+  }
+
+} # temp_input == "mean"
+
 
 # ________________----
 # TEST ------------------------------------------------------------
@@ -1913,7 +1995,7 @@ if (temp_input == "mean") {
     if (temp_input == "mean") myem[[input]] <- emulandice2::emulator_predict( design_sa_scaled, forcing_prior = "mean")
   }
 
-  #save.image(file="~/PROTECT/emulandice2/MEFF.RData")
+  # save.image(file="~/PROTECT/emulandice2/MEFF.RData")
 
   #' ## Uniform temperature prior
 
@@ -1944,7 +2026,7 @@ if (temp_input == "mean") {
 
   }
 
-  #save.image(file="~/PROTECT/emulandice2/unif_temps.RData")
+  # save.image(file="~/PROTECT/emulandice2/unif_temps.RData")
 
 
   # Sample emu uncertainty ----------------------------------------------------------------------
