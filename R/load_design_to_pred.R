@@ -173,7 +173,7 @@ load_design_to_pred <- function(design_name, N_samp = NA) {
     oaat <- list()
 
     # Get fixed (nominal) and varying values for each column of design
-    for ( dd in colnames(ice_design) ) { # or input_names
+    for ( dd in colnames(ice_design) ) { # or could use input_names
 
       # Climate column(s): mean
       if (dd %in% temps_list_names) {
@@ -223,7 +223,7 @@ load_design_to_pred <- function(design_name, N_samp = NA) {
 
 
     # Fill with values
-    for ( dd in colnames(ice_design) ) { # or input_names
+    for ( dd in colnames(ice_design) ) { # or could use input_names
 
       # Fill each column with nominal values
       for (cc in colnames(ice_design) ) {

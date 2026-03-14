@@ -57,8 +57,8 @@ do_loo <- function(designX, responseF, forcingX, year_list, N_k = NA) {
     # xxx Replaced 'next' with warning when changed to function - put back?
     if (inherits(emu_mv_loo, "try-error")) warning("Failed to do LOO test") # next
 
-    # Predict for this one
-    # This mimics emulator_predict function, but sd not var
+    # Predict for this one year - so no need for correlation between timeslices
+    # This mimics emulator_predict() function, but asks to return just mean and sd, not var
     if (temp_input == "mean") emu_one <- emu_mv_loo( designX[ ss, ], type = "sd")
     colnames(emu_one$mean) <- paste0("y", years_em)
     colnames(emu_one$sd) <- paste0("y", years_em)

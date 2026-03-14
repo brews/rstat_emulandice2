@@ -135,8 +135,8 @@ set.seed(seed)
 # Plots: 0 = none, 1 = main, 2 = nearly all, 3 = replot SIMS.pdf with model error
 plot_level <- 2
 
-# Write workspace to .RData for nice plotting later xxx just save some objects
-write_rdata <- TRUE
+# Write workspace to .RData for nice plotting later xxx Big! just save some objects
+write_rdata <- FALSE
 
 # Number of 2LM projections of GSAT expected per SSP
 # (and therefore total number of samples for book-keeping by GSAT value)
@@ -670,6 +670,10 @@ cat("\n\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 cat("END OF RESULTS\n", file = logfile_results, append = TRUE)
 cat("\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\n\n", file = logfile_results, append = TRUE)
 
+# Save workspace
+if (write_rdata) save.image( paste0(outdir_facts, out_name, "_RESULTS.RData") )
+
+
 #' # Write other outputs
 # Write other outputs --------------------------------------------------------------------
 
@@ -681,8 +685,6 @@ write_outputs(write_csv)
 # END OF FACTS ANALYSIS
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
-# Save workspace now in case plots fail
-if (write_rdata) save.image( paste0(outdir_facts, out_name, "_RESULTS.RData") )
 
 if (plot_level > 0) {
 
