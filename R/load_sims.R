@@ -48,10 +48,7 @@ load_sims <- function(variable, source = NA, region = NA) { # dataset
 
         # Regional file
         # data_file <- paste0( inputs_preprocess, "/GLA/SLE_SIMULATIONS_GLA_",region,"_250610.csv")
-
-        # xxx New data is RGI19 only
-        if (region == "RGI19") { data_file <- paste0( inputs_preprocess, "/GLA/GLA_SIMULATIONS_",region,"_mm_SLE_2014_250904.csv")
-        } else data_file <- paste0( inputs_preprocess, "/GLA/GLA_SIMULATIONS_",region,"_mm_SLE_2014_250728.csv")
+        data_file <- paste0( inputs_preprocess, "/GLA/GLA_SIMULATIONS_",region,"_mm_SLE_2014_260209.csv")
 
         # All regions in one file when there were not many runs
         if (deliverable_test) data_file <- paste0( inputs_preprocess, "/GLA/SLE_SIMULATIONS_GLA_v2_240317.csv")
