@@ -576,7 +576,7 @@ if (i_s == "AIS") {
   #                                       "eff_fraction_overburden_pressure")
   #  }
 
-  # PISM different resolution between the two xxx
+  # PISM different resolution between the two (8km and 16km)
   if ( ensemble_subset == "all_forced" && final_year <= 2200 ) {
     ice_cont_list_model[["PISM"]] <- c(ice_cont_list_model[["PISM"]],
                                        "resolution")
@@ -1600,8 +1600,8 @@ if (plot_level > 0) {
        width = 9, height = 5)
   emulandice2::plot_designs("sims", plot_level)
   emulandice2::plot_timeseries("sims", plot_level)
-  emulandice2::plot_scatter("sims", "none", plot_level)
-  emulandice2::plot_distributions("sims", plot_level)
+  emulandice2::plot_scatter("sims", "none", plot_level) # xxx check if future vs past plots added now
+  emulandice2::plot_distributions("sims", plot_level) # xxx check if doing anything or covered by plot_design...
   dev.off()
 }
 
@@ -1960,6 +1960,7 @@ if (temp_input == "mean") {
 # ________________----
 # TEST ------------------------------------------------------------
 
+
 cat("______________________________________\n", file = emu_log_file, append = TRUE)
 cat("EMULATOR: predict main effects\n", file = emu_log_file, append = TRUE)
 cat("______________________________________\n", file = emu_log_file, append = TRUE)
@@ -1973,7 +1974,8 @@ if (temp_input == "mean") {
   # Main effects (i.e. one-at-a-time design for sensitivity analysis)
   design_sa <- emulandice2::load_design_to_pred("main_effects", 100L)
 
-  cat(paste("\nPredict for main effect plots:\n"), file = logfile_build, append = TRUE)
+  cat(paste("\nPredict for main effects:\n"), file = logfile_build, append = TRUE)
+  cat(paste(names(design_sa), collapse = " "), "\n", file = logfile_build, append = TRUE)
 
   # Predict: overwrite object
   myem <- list()
@@ -2028,7 +2030,6 @@ if (temp_input == "mean") {
 
   # save.image(file="~/PROTECT/emulandice2/unif_temps.RData")
 
-
   # Sample emu uncertainty ----------------------------------------------------------------------
   projections <- list()
 
@@ -2037,7 +2038,8 @@ if (temp_input == "mean") {
     projections[[scen]] <- emulandice2::emulator_uncertainty(myem[[scen]])
   }
 
-}
+} # if temp_input == mean
+
 
 # Plot: SA -----------------------------------------------------
 
@@ -2045,15 +2047,26 @@ if (temp_input == "mean") {
 
   # Plot sensitivity analysis
   if (plot_level > 0) {
-    pdf( file = paste0( outdir, out_name, "_SA.pdf"),
+
+    pdf( file = paste0( outdir, out_name, "_MEFF.pdf"),
          width = 9, height = 5)
     emulandice2::plot_scatter("prior", "main_effects", plot_level)
-    emulandice2::plot_scatter("prior", "unif_temps", plot_level)
-    emulandice2::plot_scatter("posterior", "unif_temps", plot_level) # overkill?
     dev.off()
+
+    # SA uniform design: mean +/- 2 s.d.
+    pdf( file = paste0( outdir, out_name, "_SA_unif_mean.pdf"),
+         width = 9, height = 5)
+    emulandice2::plot_scatter("prior", "unif_temps", plot_level)
+    dev.off()
+
+    # SA uniform design: sample
+    pdf( file = paste0( outdir, out_name, "_SA_unif_final.pdf"),
+         width = 9, height = 5)
+    emulandice2::plot_scatter("posterior", "unif_temps", plot_level)
+    dev.off()
+
   }
 }
-
 
 #' # Validate
 
@@ -2087,6 +2100,8 @@ if (validation_type == "loo") {
 
   # Loop over time slices to calculate metrics and make plots
   for ( yy in validation_years) {
+
+    cat("\nYear: ",yy,"\n", file = logfile_build, append = TRUE)
 
     yind <- paste0( "y", yy)
 
@@ -2359,6 +2374,7 @@ if (write_sa) {
   cat(paste("\nSaved validation and SA info to RData file:",sa_file,"\n"), file = logfile_build, append = TRUE)
 
 }
+
 
 
 

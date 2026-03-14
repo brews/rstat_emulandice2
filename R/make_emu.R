@@ -41,6 +41,7 @@ make_emu <- function(designX, responseF, forcingX, r = NULL, thresh = 0.999) {
   stopifnot(length(thresh) == 1, 0 < thresh, thresh < 1)
 
 
+  # SVD -----------------------------------------------------------------------
 
   ## SVD of outputs
 
@@ -231,6 +232,8 @@ make_emu <- function(designX, responseF, forcingX, r = NULL, thresh = 0.999) {
     }
   }
 
+  # Train emulator -----------------------------------------------------------------------
+
   # Emulator model for each principal component
   EMU <- lapply(1L:r, function(j) {
 
@@ -373,11 +376,14 @@ make_emu <- function(designX, responseF, forcingX, r = NULL, thresh = 0.999) {
 
   #  sink()
 
+  # Predict function ------------------------------------------------------------
 
   ## predict method returns a list
 
   pred_EMU <- function(designXout) {
 
+    # Save design names
+    # Need multi_sim flag for LOO which predicts one at a time
     if (nrow(designXout) > 1) {
       multi_sim <- TRUE
       design_names <- colnames(designXout)
@@ -394,6 +400,7 @@ make_emu <- function(designX, responseF, forcingX, r = NULL, thresh = 0.999) {
       cat("\nmake_emu pred: requested input cols for prediction(s):\n", file = emu_log_file, append = TRUE)
       cat(paste(design_names, collapse = " "), "\n", file = emu_log_file, append = TRUE)
 
+      # if any factors present
       if ( include_factors) {
         if (temp_input == "mean") {
 
@@ -550,11 +557,15 @@ make_emu <- function(designX, responseF, forcingX, r = NULL, thresh = 0.999) {
 
   } # pred_EMU
 
+  # Emulator prediction object -------------------------------------------------
+
   ## return a function
 
-  robj <- function(designXout, forcingXout, type = c("mean", "sd", "var", "all")) {
+  # Can return mean function (currently not used), mean and sd (used for single year LOO predictions),
+  # or (default) mean, sd and var
+  robj <- function(designXout, forcingXout, type = c("mean", "sd", "var")) {
 
-    # Get column names
+    # Save column names
     if (!is.null(dim(designXout))) {
       multi_sim <- TRUE
       design_names <- colnames(designXout)
@@ -577,7 +588,7 @@ make_emu <- function(designX, responseF, forcingX, r = NULL, thresh = 0.999) {
     if (multi_sim) { colnames(designXout) <- design_names
     } else names(designXout) <- design_names
 
-    # predictions for r PCs
+    # Make predictions for r PCs
     pplist <- pred_EMU(designXout) # r-list
 
     # Output laGP estimated length scales and nuggets, e.g. for testing
