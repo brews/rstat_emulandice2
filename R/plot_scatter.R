@@ -5,7 +5,7 @@
 #' @param data_type Data type: "sims" for simulations; "prior" or "posterior" for
 #' emulator projections before or after calibration.
 #' @param design_name Some plots are for main effects or projections only; some only for sims
-#' Takes values none (sims); main_effects; unif_temps or AR6_2LM (projections)
+#' Takes values none (sims); unif_temps or AR6_2LM (projections)
 #' @param plot_level Plot level: 0 for none, 1 for main, 2 for exhaustive
 
 #' @export
@@ -13,598 +13,437 @@
 # Not writing to logfile because called from both build and main
 plot_scatter <- function(data_type, design_name, plot_level = 0) {
 
-  # Simulations, SA and prediction designs
-  # Main_effects and unif_temps are used by emulator_build.R for emulator SA i.e. validation,
-  # while AR6_2LM is used by main.R for main predictions
-  stopifnot(design_name %in% c("none","main_effects", "unif_temps", "AR6_2LM"))
+  # Designs: simulations, SA and prediction
+  # Design unif_temps is used by emulator_build.R for emulator SA i.e. validation,
+  # AR6_2LM is used by main.R for main predictions
+  stopifnot(design_name %in% c("none", "unif_temps", "AR6_2LM"))
 
   # Data: simulations (design = "none"),
   # uncalibrated emulator ("unif_temps" or "AR6_2LM"), or Bayesian calibrated emulator ("AR6_2LM")
-  if (design_name == "none") stopifnot(data_type %in% c("sims", "main_effects"))  # xxx TODO: remove MEFF
+  if (design_name == "none") stopifnot(data_type == "sims")
   if (design_name %in% c("unif_temps", "AR6_2LM")) stopifnot(data_type %in% c("prior", "posterior"))
 
   par(mfrow = c(1,2), pin = c(2.7,2.7), cex.main = 0.6, cex.axis = 0.7, cex.lab = 0.7)
 
-  if ( ! design_name == c("main_effects") ) { # xxx TODO: move main effects plots to another file and remove this if
+  for (scen in scenario_list) {
+
+    for (yy in yy_plot ) {
+
+      if (yy == cal_end) next # because plotting vs cal_end
+
+      # Get xrange limit for these
+      xlim <- sle_lim[[as.character(cal_end)]]
+
+      # * Future vs past: mean ------------------------------------------------------------
+      # Future vs past for simulations or SA/prediction emulator designs
+
+      if ( data_type %in% c("sims", "prior") ) {
+
+        # PLOT CALIBRATION SCATTER: FUTURE VS PAST - mean [ option: +/- 3 s.d. error bars ]
+        plot(1:3, 1:3, type = "n",
+             main = paste0( ice_name, " ", yy, " vs ", cal_end,": ", scen_name[[scen]],
+                            " mean"), # TODO: fix name for when sims only
+             xlim = xlim, ylim = sle_lim[[yy]], xaxs = "i", yaxs = "i",
+             cex.main = 0.7,
+             xlab = paste("Sea level contribution from",cal_start,"-",cal_end,"(cm)"),
+             ylab = paste("Sea level contribution from",cal_start,"-",yy,"(cm)"))
+        abline( h = 0 )
+        if (i_s == "GLA") {
+          abline( h = glacier_cap, col = "darkred", lwd = 0.5, lty = 5)
+        }
+
+        # Plot observations
+        abline( v = obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"],
+                col = grey(0.2, 0.4), lwd = 1.6)
+        rect( obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] - 3 * obs_data[obs_data$Year == cal_end,"SLE_sd"],
+              sle_lim[[yy]][1],
+              obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] + 3 * obs_data[obs_data$Year == cal_end,"SLE_sd"],
+              sle_lim[[yy]][2],
+              col = grey(0.2,0.04), border = "black", lwd = 0.5, lty = 5)
+        if (plot_level > 2) {
+          rect( obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] - 3 * total_err[obs_data$Year == cal_end],
+                sle_lim[[yy]][1],
+                obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] + 3 * total_err[obs_data$Year == cal_end],
+                sle_lim[[yy]][2],
+                col = grey(0.2,0.03), border = "black", lwd = 0.5, lty = 3)
+        }
+
+        if (data_type == "prior") {
+
+          # Emulated
+          points(myem[[scen]]$mean[ , paste0("y",cal_end) ],
+                 myem[[scen]]$mean[ , paste0("y", yy) ], cex = 0.7,
+                 pch = 16, col = AR6_rgb_light[[scen]])
+
+          # Horizontal
+          arrows( myem[[scen]]$mean[ , paste0("y",cal_end) ] - 2 * myem[[scen]]$sd[ , paste0("y",cal_end) ],
+                  myem[[scen]]$mean[ , paste0("y", yy) ],
+                  myem[[scen]]$mean[ , paste0("y",cal_end) ] + 2* myem[[scen]]$sd[ , paste0("y",cal_end) ],
+                  myem[[scen]]$mean[ , paste0("y", yy) ],
+                  code = 3, length = 0.08, angle = 90, lwd = 0.1,
+                  col = AR6_rgb_light[[scen]])
+
+          # Vertical
+          arrows( myem[[scen]]$mean[ , paste0("y",cal_end) ],
+                  myem[[scen]]$mean[ , paste0("y", yy) ] - 2 * myem[[scen]]$sd[ , paste0("y", yy) ],
+                  myem[[scen]]$mean[ , paste0("y",cal_end) ],
+                  myem[[scen]]$mean[ , paste0("y", yy) ] + 2 * myem[[scen]]$sd[ , paste0("y", yy) ],
+                  code = 3, length = 0.08, angle = 90, lwd = 0.1,
+                  col = AR6_rgb_light[[scen]])
+
+          # Legend
+          # TODO: not plotting?
+          yleg <- 0.90 * sle_lim[[yy]][2]
+          points( xlim[1] + 0.05*(xlim[2] - xlim[1]), yleg, pch = 16, col = AR6_rgb_light[[scen]], cex = 0.7)
+          text(x = xlim[1] + 0.05*(xlim[2] - xlim[1]), y = yleg, pos = 4, "Emulated mean +/- 2 s.d.", cex = 0.7)
+
+        } # prior only
+
+        # ADD SIMULATED IN BLACK
+        yleg <- 0.82*sle_lim[[yy]][2]
+
+        # Get simulations for this scenario
+        plot_data <- ice_data[ ice_data$scenario == scen, ]
+
+        # Add nearest RCPs or reconstructed
+        # TODO: add RCP names to legend
+        if (scen == "SSP126") plot_data <- ice_data[ ice_data$scenario %in% c("RCP26", "SSP126"), ]
+        if (scen == "SSP245") plot_data <- ice_data[ ice_data$scenario %in% c("RCP45", "SSP245"), ]
+        if (scen == "SSP534-over") plot_data <- ice_data[ ice_data$scenario %in%  c("SSP534-over", "SSP534-over-recon"), ]
+        if (scen == "SSP585") plot_data <- ice_data[ ice_data$scenario %in% c("RCP85", "SSP585"), ]
+
+        # Assume more than one simulation...
+        if ( length(plot_data) > 1 ) {
+          apply( plot_data, 1,
+                 function(x) points( x[ paste0("y",cal_end) ], x[ paste0("y",yy) ],
+                                     pch = 16, cex = 0.5, col = "black" ) )
+          points( xlim[1] + 0.05*(xlim[2] - xlim[1]), yleg,
+                  pch = 16, cex = 0.7, col = "black" )
+          text(x = xlim[1] + 0.05*(xlim[2] - xlim[1]), y = yleg, pos = 4, "Simulated", cex = 0.7)
+
+        }
+
+      }  # if data_type sims or prior
+
+      # * Future vs past: final ------------------------------------------------------------
+
+      #___________________________________________________________________________
+      # PLOT CALIBRATION SCATTER: FUTURE VS PAST - final
+      # Same again but for emulator posterior
+
+      # Posterior
+      if (data_type == "posterior") {
+
+        stopifnot( design_name %in% c("unif_temps","AR6_2LM") ) # not sims as would duplicate above
+
+        plot(1:3, 1:3, type = "n",
+             main = paste0( ice_name, " ", yy, " vs ", cal_end,": ", scen_name[[scen]], " final"),
+             xlim = xlim, ylim = sle_lim[[yy]], xaxs = "i", yaxs = "i",
+             xlab = paste("Sea level contribution from",cal_start,"-",cal_end,"(cm)"),
+             ylab = paste("Sea level contribution from",cal_start,"-",yy,"(cm)"))
+        abline( h = 0, lwd = 0.2, col = "darkgrey" )
+        if (i_s == "GLA") {
+          abline( h = glacier_cap, col = "darkred", lwd = 0.5, lty = 5)
+        }
+
+        # Observations
+        abline( v = obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"],
+                col = grey(0.2, 0.4), lwd = 1.6)
+        rect( obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] - 3 * obs_data[obs_data$Year == cal_end,"SLE_sd"],
+              sle_lim[[yy]][1],
+              obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] + 3 * obs_data[obs_data$Year == cal_end,"SLE_sd"],
+              sle_lim[[yy]][2],
+              col = grey(0.2,0.04), border = "black", lwd = 0.5, lty = 5)
+        if (plot_level > 2) {
+          rect( obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] - 3 * total_err[obs_data$Year == cal_end],
+                sle_lim[[yy]][1],
+                obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] + 3 * total_err[obs_data$Year == cal_end],
+                sle_lim[[yy]][2],
+                col = grey(0.2,0.03), border = "black", lwd = 0.5, lty = 3)
+        }
+        # EMULATED
+        points(projections[[scen]][ , paste0("y",cal_end) ],
+               projections[[scen]][ , paste0("y",yy) ], pch = 16, cex = 0.5,
+               col = AR6_rgb_light[[scen]], bg = AR6_rgb_light[[scen]])
+
+        yleg <- sle_lim[[yy]][1] + 0.87*(sle_lim[[yy]][2] - sle_lim[[yy]][1])
+        points( xlim[1] + 0.05*(xlim[2] - xlim[1]), yleg, pch = 16, cex = 0.7,
+                col = AR6_rgb_light[[scen]], bg = AR6_rgb_light[[scen]] )
+        text(x = xlim[1] + 0.05*(xlim[2] - xlim[1]), y = yleg, pos = 4, "Emulated", cex = 0.7)
+
+        # SIMULATIONS
+        yleg <- sle_lim[[yy]][1] + 0.92*(sle_lim[[yy]][2] - sle_lim[[yy]][1])
+
+        # Get simulations for this scenario
+        plot_data <- ice_data[ ice_data$scenario == scen, ]
+
+        # Add nearest RCPs
+        # TODO: add RCP names to legend
+        if (scen == "SSP126") plot_data <- ice_data[ ice_data$scenario %in% c("RCP26", "SSP126"), ]
+        if (scen == "SSP245") plot_data <- ice_data[ ice_data$scenario %in% c("RCP45", "SSP245"), ]
+        if (scen == "SSP534-over") plot_data <- ice_data[ ice_data$scenario %in%  c("SSP534-over", "SSP534-over-recon"), ]
+        if (scen == "SSP585") plot_data <- ice_data[ ice_data$scenario %in% c("RCP85", "SSP585"), ]
+
+        # Assume more than one simulation...
+        if ( length(plot_data) > 1 ) {
+          apply( plot_data, 1,
+                 function(x) points( x[ paste0("y",cal_end) ], x[ paste0("y",yy) ],
+                                     pch = 16, cex = 0.5, col = "black" ) )
+          points( xlim[1] + 0.05*(xlim[2] - xlim[1]), yleg,
+                  pch = 16, cex = 0.7, col = "black" )
+          text(x = xlim[1] + 0.05*(xlim[2] - xlim[1]), y = yleg, pos = 4, "Simulated", cex = 0.7)
+
+        }
+
+      } # posterior
+    }  # year list yy_plot
+  } # scenario_list
+
+  if (plot_level >= 2) {
 
     for (scen in scenario_list) {
 
-      for (yy in yy_plot ) {
+      # EMULATOR
 
-        if (yy == cal_end) next # because plotting vs cal_end
+      # NOTE THIS SHOULD REALLY BE CAL_END - CAL_START
+      # BUT WORKS BECAUSE CAL_START IS ALWAYS ZERO FOR NOW
+      # [does this refer to yy or plot?]
+      for (yy in yy_plot) {
 
-        # * Future vs past: mean ------------------------------------------------------------
-        # Future vs past for simulations or SA/prediction emulator designs
+        # SEA LEVEL VS TEMP TIMESLICES
+        # Mean projections
+        for (gg in temps_list_names) {
 
-        if ( data_type %in% c("sims", "prior") ) {
-
-          # PLOT CALIBRATION SCATTER: FUTURE VS PAST - mean [ option: +/- 3 s.d. error bars ]
-          plot(1:3, 1:3, type = "n",
-               main = paste0( ice_name, " ", yy, " vs ", cal_end,": ", scen_name[[scen]],
-                              " mean"), # xxx fix name for when sims only; ditch 5-95% intervals
-               xlim = ylim_obs, ylim = sle_lim[[yy]], xaxs = "i", yaxs = "i",
-               cex.main = 0.7,
-               xlab = paste("Sea level contribution from",cal_start,"-",cal_end,"(cm)"),
-               ylab = paste("Sea level contribution from",cal_start,"-",yy,"(cm)"))
-          abline( h = 0 )
-          if (i_s == "GLA") {
-            abline( h = glacier_cap, col = "darkred", lwd = 0.5, lty = 5)
-          }
-
-          # Plot observations
-          abline( v = obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"],
-                  col = grey(0.2, 0.4), lwd = 1.6)
-          rect( obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] - 3 * obs_data[obs_data$Year == cal_end,"SLE_sd"],
-                sle_lim[[yy]][1],
-                obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] + 3 * obs_data[obs_data$Year == cal_end,"SLE_sd"],
-                sle_lim[[yy]][2],
-                col = grey(0.2,0.04), border = "black", lwd = 0.5, lty = 5)
-          if (plot_level > 2) {
-            rect( obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] - 3 * total_err[obs_data$Year == cal_end],
-                  sle_lim[[yy]][1],
-                  obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] + 3 * total_err[obs_data$Year == cal_end],
-                  sle_lim[[yy]][2],
-                  col = grey(0.2,0.03), border = "black", lwd = 0.5, lty = 3)
-          }
-
+          # SLE vs GSAT: mean ------------------------------------------------------------
           if (data_type == "prior") {
 
-            # Emulated
-            points(myem[[scen]]$mean[ , paste0("y",cal_end) ],
-                   myem[[scen]]$mean[ , paste0("y", yy) ], cex = 0.5,
-                   pch = 16, col = AR6_rgb_med[[scen]])
+            plot( design_pred[[scen]][,gg], myem[[scen]]$mean[,paste0("y",yy)],
+                  pch = 16, col = AR6_rgb_light[[scen]], cex = 0.7,
+                  main = paste( "Mean projections at",yy,"for", scen_name[[scen]] ),
+                  xlab = GSAT_lab[[gg]],
+                  ylab = paste("Sea level contribution at",yy,"(cm SLE)"),
+                  ylim = sle_lim[[yy]])
+            abline( h = 0 )
 
-            # Horizontal
-            arrows( myem[[scen]]$mean[ , paste0("y",cal_end) ] - 2 * myem[[scen]]$sd[ , paste0("y",cal_end) ],
-                    myem[[scen]]$mean[ , paste0("y", yy) ],
-                    myem[[scen]]$mean[ , paste0("y",cal_end) ] + 2* myem[[scen]]$sd[ , paste0("y",cal_end) ],
-                    myem[[scen]]$mean[ , paste0("y", yy) ],
-                    code = 3, length = 0.08, angle = 90, lwd = 0.1,
-                    col = AR6_rgb_light[[scen]])
+            # TODO: minor fix for x limits of rect (extend past design limits)
+            if (yy == cal_end) {
+              abline( h = obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"],
+                      col = grey(0.2, 0.4), lwd = 1.6)
+              rect( min(design_pred[[scen]][,gg]),
+                    obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] - 3 * obs_data[obs_data$Year == cal_end,"SLE_sd"],
+                    max(design_pred[[scen]][,gg]),
+                    obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] + 3 * obs_data[obs_data$Year == cal_end,"SLE_sd"],
+                    col = grey(0.2,0.04), border = "black", lwd = 0.5, lty = 5)
+              if (plot_level > 2) {
+                rect( min(design_pred[[scen]][,gg]),
+                      obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] - 3 * total_err[obs_data$Year == cal_end],
+                      max(design_pred[[scen]][,gg]),
+                      obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] + 3 * total_err[obs_data$Year == cal_end],
+                      col = grey(0.2,0.03), border = "black", lwd = 0.5, lty = 3)
+              }
+            }
 
-            # Vertical
-            arrows( myem[[scen]]$mean[ , paste0("y",cal_end) ],
+            # Error bars
+            arrows( design_pred[[scen]][,gg],
                     myem[[scen]]$mean[ , paste0("y", yy) ] - 2 * myem[[scen]]$sd[ , paste0("y", yy) ],
-                    myem[[scen]]$mean[ , paste0("y",cal_end) ],
+                    design_pred[[scen]][,gg],
                     myem[[scen]]$mean[ , paste0("y", yy) ] + 2 * myem[[scen]]$sd[ , paste0("y", yy) ],
                     code = 3, length = 0.08, angle = 90, lwd = 0.1,
                     col = AR6_rgb_light[[scen]])
 
-            yleg <- 0.90*sle_lim[[yy]][2]
-            points( ylim_obs[1] + 0.05*(ylim_obs[2] - ylim_obs[1]), yleg, pch = 16, col = AR6_rgb_light[[scen]], cex = 0.7)
-            text(x = ylim_obs[1] + 0.05*(ylim_obs[2] - ylim_obs[1]), y = yleg, pos = 4, "Emulated mean +/- 2 s.d.", cex = 0.7)
+            # TODO: add RCPs! and add names to legend
+            if (length(temps_list) == 1) {
+              points( temps[ice_data$scenario == scen], ice_data[ ice_data$scenario == scen, paste0("y", yy) ],
+                      pch = 16, cex = 0.7) # col = AR6_rgb[[scen]],
+            } else points( temps[ice_data$scenario == scen, gg], ice_data[ ice_data$scenario == scen, paste0("y", yy) ],
+                           pch = 16, cex = 0.7) # col = AR6_rgb[[scen]],
 
-          } # prior only
+            if (FALSE) { # testing
+              # Get simulations for this scenario if available
+              plot_data <- ice_data[ ice_data$scenario == scen, ]
 
-          # ADD SIMULATED IN BLACK
-          yleg <- 0.82*sle_lim[[yy]][2]
+              # Add nearest RCPs or reconstructed
+              if (scen == "SSP126") plot_data <- ice_data[ ice_data$scenario %in% c("RCP26", "SSP126"), ]
+              if (scen == "SSP245") plot_data <- ice_data[ ice_data$scenario %in% c("RCP45", "SSP245"), ]
+              if (scen == "SSP534-over") plot_data <- ice_data[ ice_data$scenario %in%  c("SSP534-over", "SSP534-over-recon"), ]
+              if (scen == "SSP585") plot_data <- ice_data[ ice_data$scenario %in% c("RCP85", "SSP585"), ]
 
-          # Get simulations for this scenario
-          plot_data <- ice_data[ ice_data$scenario == scen, ]
-
-          # Add nearest RCPs or reconstructed xxx should put RCPs in legends too
-          if (scen == "SSP126") plot_data <- ice_data[ ice_data$scenario %in% c("RCP26", "SSP126"), ]
-          if (scen == "SSP245") plot_data <- ice_data[ ice_data$scenario %in% c("RCP45", "SSP245"), ]
-          if (scen == "SSP534-over") plot_data <- ice_data[ ice_data$scenario %in%  c("SSP534-over", "SSP534-over-recon"), ]
-          if (scen == "SSP585") plot_data <- ice_data[ ice_data$scenario %in% c("RCP85", "SSP585"), ]
-
-          # Assume more than one simulation...
-          if ( length(plot_data) > 1 ) {
-            apply( plot_data, 1,
-                   function(x) points( x[ paste0("y",cal_end) ], x[ paste0("y",yy) ],
-                                       pch = 16, cex = 0.5, col = "black" ) )
-            points( ylim_obs[1] + 0.05*(ylim_obs[2] - ylim_obs[1]), yleg,
-                    pch = 16, cex = 0.7, col = "black" )
-            text(x = ylim_obs[1] + 0.05*(ylim_obs[2] - ylim_obs[1]), y = yleg, pos = 4, "Simulated", cex = 0.7)
-
-          }
-
-        }  # if data_type sims or prior
-
-        # * Future vs past: final ------------------------------------------------------------
-
-        #___________________________________________________________________________
-        # PLOT CALIBRATION SCATTER: FUTURE VS PAST - final
-        # Same again but for emulator posterior
-
-        # Posterior
-        if (data_type == "posterior") {
-
-          stopifnot( design_name %in% c("unif_temps","AR6_2LM") ) # not sims as would duplicate above
-
-          plot(1:3, 1:3, type = "n",
-               main = paste0( ice_name, " ", yy, " vs ", cal_end,": ", scen_name[[scen]], " final"),
-               xlim = ylim_obs, ylim = sle_lim[[yy]], xaxs = "i", yaxs = "i",
-               xlab = paste("Sea level contribution from",cal_start,"-",cal_end,"(cm)"),
-               ylab = paste("Sea level contribution from",cal_start,"-",yy,"(cm)"))
-          abline( h = 0, lwd = 0.2, col = "darkgrey" )
-          if (i_s == "GLA") {
-            abline( h = glacier_cap, col = "darkred", lwd = 0.5, lty = 5)
-          }
-
-          # Observations
-          abline( v = obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"],
-                  col = grey(0.2, 0.4), lwd = 1.6)
-          rect( obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] - 3 * obs_data[obs_data$Year == cal_end,"SLE_sd"],
-                sle_lim[[yy]][1],
-                obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] + 3 * obs_data[obs_data$Year == cal_end,"SLE_sd"],
-                sle_lim[[yy]][2],
-                col = grey(0.2,0.04), border = "black", lwd = 0.5, lty = 5)
-          if (plot_level > 2) {
-            rect( obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] - 3 * total_err[obs_data$Year == cal_end],
-                  sle_lim[[yy]][1],
-                  obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] + 3 * total_err[obs_data$Year == cal_end],
-                  sle_lim[[yy]][2],
-                  col = grey(0.2,0.03), border = "black", lwd = 0.5, lty = 3)
-          }
-          # EMULATED
-          points(projections[[scen]][ , paste0("y",cal_end) ],
-                 projections[[scen]][ , paste0("y",yy) ], pch = 16, cex = 0.5,
-                 col = AR6_rgb_light[[scen]], bg = AR6_rgb_light[[scen]])
-
-          yleg <- sle_lim[[yy]][1] + 0.87*(sle_lim[[yy]][2] - sle_lim[[yy]][1])
-          points( ylim_obs[1] + 0.05*(ylim_obs[2] - ylim_obs[1]), yleg, pch = 16, cex = 0.7,
-                  col = AR6_rgb_light[[scen]], bg = AR6_rgb_light[[scen]] )
-          text(x = ylim_obs[1] + 0.05*(ylim_obs[2] - ylim_obs[1]), y = yleg, pos = 4, "Emulated", cex = 0.7)
-
-          # SIMULATIONS
-          yleg <- sle_lim[[yy]][1] + 0.92*(sle_lim[[yy]][2] - sle_lim[[yy]][1])
-
-          # Get simulations for this scenario
-          plot_data <- ice_data[ ice_data$scenario == scen, ]
-
-          # Add nearest RCPs xxx should put RCP in legends too
-          if (scen == "SSP126") plot_data <- ice_data[ ice_data$scenario %in% c("RCP26", "SSP126"), ]
-          if (scen == "SSP245") plot_data <- ice_data[ ice_data$scenario %in% c("RCP45", "SSP245"), ]
-          if (scen == "SSP534-over") plot_data <- ice_data[ ice_data$scenario %in%  c("SSP534-over", "SSP534-over-recon"), ]
-          if (scen == "SSP585") plot_data <- ice_data[ ice_data$scenario %in% c("RCP85", "SSP585"), ]
-
-          # Assume more than one simulation...
-          if ( length(plot_data) > 1 ) {
-            apply( plot_data, 1,
-                   function(x) points( x[ paste0("y",cal_end) ], x[ paste0("y",yy) ],
-                                       pch = 16, cex = 0.5, col = "black" ) )
-            points( ylim_obs[1] + 0.05*(ylim_obs[2] - ylim_obs[1]), yleg,
-                    pch = 16, cex = 0.7, col = "black" )
-            text(x = ylim_obs[1] + 0.05*(ylim_obs[2] - ylim_obs[1]), y = yleg, pos = 4, "Simulated", cex = 0.7)
-
-          }
-
-        } # posterior
-      }  # year list yy_plot
-    } # scenario_list
-
-    if (plot_level >= 2) {
-
-      for (scen in scenario_list) {
-
-        # EMULATOR
-
-        # NOTE THIS SHOULD REALLY BE CAL_END - CAL_START
-        # BUT WORKS BECAUSE CAL_START IS ALWAYS ZERO FOR NOW
-        # [does this refer to yy or plot?]
-        for (yy in yy_plot) {
-
-          # SEA LEVEL VS TEMP TIMESLICES
-          # Mean projections
-          for (gg in temps_list_names) {
-
-            # SLE vs GSAT: mean ------------------------------------------------------------
-            if (data_type == "prior") {
-
-              plot( design_pred[[scen]][,gg], myem[[scen]]$mean[,paste0("y",yy)],
-                    pch = 16, col = AR6_rgb_light[[scen]], # grey(0.8, alpha = 0.4 ),
-                    main = paste( "Mean projections at",yy,"for", scen_name[[scen]] ),
-                    xlab = GSAT_lab[[gg]],
-                    ylab = paste("Sea level contribution at",yy,"(cm SLE)"),
-                    ylim = sle_lim[[yy]])
-              abline( h = 0 )
-
-              if (yy == cal_end) {
-                abline( h = obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"],
-                        col = grey(0.2, 0.4), lwd = 1.6)
-                rect( min(design_pred[[scen]][,gg]),
-                      obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] - 3 * obs_data[obs_data$Year == cal_end,"SLE_sd"],
-                      max(design_pred[[scen]][,gg]),
-                      obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] + 3 * obs_data[obs_data$Year == cal_end,"SLE_sd"],
-                      col = grey(0.2,0.04), border = "black", lwd = 0.5, lty = 5)
-                if (plot_level > 2) {
-                  rect( min(design_pred[[scen]][,gg]),
-                        obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] - 3 * total_err[obs_data$Year == cal_end],
-                        max(design_pred[[scen]][,gg]),
-                        obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] + 3 * total_err[obs_data$Year == cal_end],
-                        col = grey(0.2,0.03), border = "black", lwd = 0.5, lty = 3)
-                }
-              }
-
-              # Error bars
-              arrows( design_pred[[scen]][,gg],
-                      myem[[scen]]$mean[ , paste0("y", yy) ] - 2 * myem[[scen]]$sd[ , paste0("y", yy) ],
-                      design_pred[[scen]][,gg],
-                      myem[[scen]]$mean[ , paste0("y", yy) ] + 2 * myem[[scen]]$sd[ , paste0("y", yy) ],
-                      code = 3, length = 0.08, angle = 90,
-                      col = AR6_rgb_light[[scen]])
-
-              # xxx Note this excludes any RCPs!!
               if (length(temps_list) == 1) {
-                points( temps[ice_data$scenario == scen], ice_data[ ice_data$scenario == scen, paste0("y", yy) ],
-                        pch = 16, col = AR6_rgb[[scen]], cex = 0.8)
-              } else points( temps[ice_data$scenario == scen, gg], ice_data[ ice_data$scenario == scen, paste0("y", yy) ],
-                             pch = 16, col = AR6_rgb[[scen]], cex = 0.8)
+                points( temps[ice_data$scenario == scen], plot_data[ , paste0("y", yy) ],
+                        pch = 16, cex = 0.7) # col = AR6_rgb[[scen]],
+              } else points( temps[ice_data$scenario == scen, gg], plot_data[ , paste0("y", yy) ],
+                             pch = 16, cex = 0.7) # col = AR6_rgb[[scen]],
+            }
+            # Assume more than one simulation...
+            if ( length(plot_data) > 1 ) {
+              apply( plot_data, 1,
+                     function(x) points( x[ paste0("y",cal_end) ], x[ paste0("y",yy) ],
+                                         pch = 16, cex = 0.5, col = "black" ) )
+              points( xlim[1] + 0.05*(xlim[2] - xlim[1]), yleg,
+                      pch = 16, cex = 0.7, col = "black" )
+              text(x = xlim[1] + 0.05*(xlim[2] - xlim[1]), y = yleg, pos = 4, "Simulated", cex = 0.7)
 
-              if (FALSE) { # testing
-                # Get simulations for this scenario if available
-                plot_data <- ice_data[ ice_data$scenario == scen, ]
-
-                # Add nearest RCPs or reconstructed xxx should put RCPs in legends too
-                if (scen == "SSP126") plot_data <- ice_data[ ice_data$scenario %in% c("RCP26", "SSP126"), ]
-                if (scen == "SSP245") plot_data <- ice_data[ ice_data$scenario %in% c("RCP45", "SSP245"), ]
-                if (scen == "SSP534-over") plot_data <- ice_data[ ice_data$scenario %in%  c("SSP534-over", "SSP534-over-recon"), ]
-                if (scen == "SSP585") plot_data <- ice_data[ ice_data$scenario %in% c("RCP85", "SSP585"), ]
-
-                if (length(temps_list) == 1) {
-                  points( temps[ice_data$scenario == scen], plot_data[ , paste0("y", yy) ],
-                          pch = 16, col = AR6_rgb[[scen]], cex = 0.8)
-                } else points( temps[ice_data$scenario == scen, gg], plot_data[ , paste0("y", yy) ],
-                               pch = 16, col = AR6_rgb[[scen]], cex = 0.8)
-              }
-              # Assume more than one simulation...
-              if ( length(plot_data) > 1 ) {
-                apply( plot_data, 1,
-                       function(x) points( x[ paste0("y",cal_end) ], x[ paste0("y",yy) ],
-                                           pch = 16, cex = 0.5, col = "black" ) )
-                points( ylim_obs[1] + 0.05*(ylim_obs[2] - ylim_obs[1]), yleg,
-                        pch = 16, cex = 0.7, col = "black" )
-                text(x = ylim_obs[1] + 0.05*(ylim_obs[2] - ylim_obs[1]), y = yleg, pos = 4, "Simulated", cex = 0.7)
-
-              }
-
-            } # if prior
-
-            # SLE vs GSAT: full ------------------------------------------------------------
-            # Full projections
-            if (data_type == "posterior") {
-
-              plot( design_pred[[scen]][,gg], projections[[scen]][,paste0("y",yy)],
-                    pch = 16, col = AR6_rgb_light[[scen]], # grey(0.8, alpha = 0.4),
-                    main = paste( "Final projections at",yy,"for", scen_name[[scen]] ),
-                    xlab = GSAT_lab[[gg]],
-                    ylab = paste("Sea level contribution at",yy,"(cm SLE)"),
-                    ylim = sle_lim[[yy]])
-              abline( h = 0 )
-
-              if (yy == cal_end) {
-                abline( h = obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"],
-                        col = grey(0.2, 0.4), lwd = 1.6)
-                rect( min(design_pred[[scen]][,gg]),
-                      obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] - 3 * obs_data[obs_data$Year == cal_end,"SLE_sd"],
-                      max(design_pred[[scen]][,gg]),
-                      obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] + 3 * obs_data[obs_data$Year == cal_end,"SLE_sd"],
-                      col = grey(0.2,0.04), border = "black", lwd = 0.5, lty = 5)
-                if (plot_level > 2) {
-                  rect( min(design_pred[[scen]][,gg]),
-                        obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] - 3 * total_err[obs_data$Year == cal_end],
-                        max(design_pred[[scen]][,gg]),
-                        obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] + 3 * total_err[obs_data$Year == cal_end],
-                        col = grey(0.2,0.03), border = "black", lwd = 0.5, lty = 3)
-                }
-              }
-
-              # xxx Note this excludes any RCPs!!
-              if (length(temps_list) == 1) {
-                points( temps[ice_data$scenario == scen], ice_data[ ice_data$scenario == scen, paste0("y", yy) ],
-                        pch = 16, col = AR6_rgb[[scen]], cex = 0.7)
-              } else points( temps[ice_data$scenario == scen, gg], ice_data[ ice_data$scenario == scen, paste0("y", yy) ],
-                             pch = 16, col = AR6_rgb[[scen]], cex = 0.7)
-
-            } # if posterior
-
-          } # GSAT loop
-
-          # SLE vs ice inputs: mean ------------------------------------------------------------
-          if (data_type == "prior") {
-
-            # SEA LEVEL VS ICE MODEL PARAMETER
-            # Plot mean and full projections vs each parameter in turn
-            for (pp in ice_all_list) {
-
-              plot( design_pred[[scen]][,pp], myem[[scen]]$mean[,paste0("y",yy)],
-                    pch = 16, col = AR6_rgb_light[[scen]],
-                    main = paste("Mean projections at",yy,"for", scen_name[[scen]]),
-                    ylab = paste("Sea level contribution at",yy,"(cm SLE)"),
-                    xlab = pp, ylim = sle_lim[[yy]])
-              abline( h = 0 )
-
-              if (yy == cal_end) {
-                abline( h = obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"],
-                        col = grey(0.2, 0.4), lwd = 1.6)
-                rect( min(design_pred[[scen]][,pp]),
-                      obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] - 3 * obs_data[obs_data$Year == cal_end,"SLE_sd"],
-                      max(design_pred[[scen]][,pp]),
-                      obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] + 3 * obs_data[obs_data$Year == cal_end,"SLE_sd"],
-                      col = grey(0.2,0.04), border = "black", lwd = 0.5, lty = 5)
-                if (plot_level > 2) {
-                  rect( min(design_pred[[scen]][,pp]),
-                        obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] - 3 * total_err[obs_data$Year == cal_end],
-                        max(design_pred[[scen]][,pp]),
-                        obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] + 3 * total_err[obs_data$Year == cal_end],
-                        col = grey(0.2,0.03), border = "black", lwd = 0.5, lty = 3)
-                }
-              }
-
-              arrows( design_pred[[scen]][,pp],
-                      myem[[scen]]$mean[ , paste0("y", yy) ] - 2 * myem[[scen]]$sd[ , paste0("y", yy) ],
-                      design_pred[[scen]][,pp],
-                      myem[[scen]]$mean[ , paste0("y", yy) ] + 2 * myem[[scen]]$sd[ , paste0("y", yy) ],
-                      code = 3, length = 0.08, angle = 90,
-                      col = AR6_rgb_light[[scen]])
-
-              # xxx Note this excludes RCPs!
-              points( unlist(ice_design[,pp])[ice_data$scenario == scen], ice_data[ ice_data$scenario == scen, paste0("y", yy) ],
-                      pch = 16, col = AR6_rgb[[scen]], cex = 0.7)
-
-              if (FALSE) { # testing xxx
-                # Get simulations for this scenario if available
-                # xxx rewrite more neatly
-                plot_data <- ice_data[ ice_data$scenario == scen, ]
-                plot_design <- unlist(ice_design[,pp])[ ice_data$scenario == scen ]
-
-                # Add nearest RCPs or reconstructed xxx should put RCPs in legends too
-                if (scen == "SSP126") {
-                  plot_design <- unlist(ice_design[,pp])[ ice_data$scenario %in% c("RCP26", "SSP126") ]
-                  plot_data <- ice_data[ ice_data$scenario %in% c("RCP26", "SSP126"), ]
-                }
-                if (scen == "SSP245") {
-                  plot_design <- unlist(ice_design[,pp])[ ice_data$scenario %in% c("RCP45", "SSP245") ]
-                  plot_data <- ice_data[ ice_data$scenario %in% c("RCP45", "SSP245"), ]
-                }
-                if (scen == "SSP534-over") {
-                  plot_design <- unlist(ice_design[,pp])[ ice_data$scenario %in% c("SSP534-over", "SSP534-over-recon") ]
-                  plot_data <- ice_data[ ice_data$scenario %in% c("SSP534-over", "SSP534-over-recon"), ]
-                }
-                if (scen == "SSP585") {
-                  plot_design <- unlist(ice_design[,pp])[ ice_data$scenario %in% c("RCP85", "SSP585") ]
-                  plot_data <- ice_data[ ice_data$scenario %in% c("RCP85", "SSP585"), ]
-                }
-
-                points( plot_design, plot_data[ , paste0("y", yy) ],
-                        pch = 16, col = AR6_rgb[[scen]], cex = 0.7)
-              }
-
-            } # param list
+            }
 
           } # if prior
 
-          # SLE vs ice inputs: final ------------------------------------------------------------
+          # SLE vs GSAT: full ------------------------------------------------------------
+          # Full projections
           if (data_type == "posterior") {
 
-            for (pp in ice_all_list) {
+            plot( design_pred[[scen]][,gg], projections[[scen]][,paste0("y",yy)],
+                  pch = 16, col = AR6_rgb_light[[scen]], cex = 0.7,
+                  main = paste( "Final projections at",yy,"for", scen_name[[scen]] ),
+                  xlab = GSAT_lab[[gg]],
+                  ylab = paste("Sea level contribution at",yy,"(cm SLE)"),
+                  ylim = sle_lim[[yy]])
+            abline( h = 0 )
 
-              # SAME AGAIN BUT FINAL PROJECTIONS
-
-              plot( design_pred[[scen]][,pp], projections[[scen]][,paste0("y",yy)],
-                    pch = 16, cex = 0.8, col = AR6_rgb_light[[scen]], # grey(0.8, alpha = 0.4),
-                    main = paste("Final projections at",yy,"for", scen_name[[scen]]),
-                    ylab = paste("Sea level contribution at",yy,"(cm SLE)"),
-                    xlab = pp, ylim = sle_lim[[yy]] )
-              abline( h = 0 )
-
-              # xxx Note this excludes any RCPs!!
-              points( unlist(ice_design[,pp])[ice_data$scenario == scen], ice_data[ ice_data$scenario == scen, paste0("y", yy) ],
-                      pch = 16, col = AR6_rgb[[scen]], cex = 0.8 )
-
-              # ADD OBSERVATIONS
-              if (yy == cal_end) {
-                abline( h = obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"],
-                        col = grey(0.2, 0.4), lwd = 1.6)
-                rect( min(design_pred[[scen]][,pp]),
-                      obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] - 3 * obs_data[obs_data$Year == cal_end,"SLE_sd"],
-                      max(design_pred[[scen]][,pp]),
-                      obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] + 3 * obs_data[obs_data$Year == cal_end,"SLE_sd"],
-                      col = grey(0.2,0.04), border = "black", lwd = 0.5, lty = 5)
-                if (plot_level > 2) {
-                  rect( min(design_pred[[scen]][,pp]),
-                        obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] - 3 * total_err[obs_data$Year == cal_end],
-                        max(design_pred[[scen]][,pp]),
-                        obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] + 3 * total_err[obs_data$Year == cal_end],
-                        col = grey(0.2,0.03), border = "black", lwd = 0.5, lty = 3)
-                }
+            if (yy == cal_end) {
+              abline( h = obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"],
+                      col = grey(0.2, 0.4), lwd = 1.6)
+              rect( min(design_pred[[scen]][,gg]),
+                    obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] - 3 * obs_data[obs_data$Year == cal_end,"SLE_sd"],
+                    max(design_pred[[scen]][,gg]),
+                    obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] + 3 * obs_data[obs_data$Year == cal_end,"SLE_sd"],
+                    col = grey(0.2,0.04), border = "black", lwd = 0.5, lty = 5)
+              if (plot_level > 2) {
+                rect( min(design_pred[[scen]][,gg]),
+                      obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] - 3 * total_err[obs_data$Year == cal_end],
+                      max(design_pred[[scen]][,gg]),
+                      obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] + 3 * total_err[obs_data$Year == cal_end],
+                      col = grey(0.2,0.03), border = "black", lwd = 0.5, lty = 3)
               }
-            } # param list
+            }
+
+            # TODO: add RCPs! and add names to legend
+            if (length(temps_list) == 1) {
+              points( temps[ice_data$scenario == scen], ice_data[ ice_data$scenario == scen, paste0("y", yy) ],
+                      pch = 16, cex = 0.7) # col = AR6_rgb[[scen]],
+            } else points( temps[ice_data$scenario == scen, gg], ice_data[ ice_data$scenario == scen, paste0("y", yy) ],
+                           pch = 16, cex = 0.7) # col = AR6_rgb[[scen]],
 
           } # if posterior
 
-        } # Year
-      } # SSP
+        } # GSAT loop
 
-    } # plot_level >= 2
+        # SLE vs ice inputs: mean ------------------------------------------------------------
+        if (data_type == "prior") {
 
-  } # if design_name not main effects xxx TODO: move when move MEFF out
+          # SEA LEVEL VS ICE MODEL PARAMETER
+          # Plot mean and full projections vs each parameter in turn
+          for (pp in ice_all_list) {
 
-  # * BUILD: MAIN EFFECTS ------------------------------------------------------------
+            plot( design_pred[[scen]][,pp], myem[[scen]]$mean[,paste0("y",yy)],
+                  pch = 16, col = AR6_rgb_light[[scen]], cex = 0.7,
+                  main = paste("Mean projections at",yy,"for", scen_name[[scen]]),
+                  ylab = paste("Sea level contribution at",yy,"(cm SLE)"),
+                  xlab = pp, ylim = sle_lim[[yy]])
+            abline( h = 0 )
 
-  # EMULATOR MAIN EFFECTS
-  # Called from emulator_build.R
-  if (design_name == "main_effects") {
+            if (yy == cal_end) {
+              abline( h = obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"],
+                      col = grey(0.2, 0.4), lwd = 1.6)
+              rect( min(design_pred[[scen]][,pp]),
+                    obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] - 3 * obs_data[obs_data$Year == cal_end,"SLE_sd"],
+                    max(design_pred[[scen]][,pp]),
+                    obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] + 3 * obs_data[obs_data$Year == cal_end,"SLE_sd"],
+                    col = grey(0.2,0.04), border = "black", lwd = 0.5, lty = 5)
+              if (plot_level > 2) {
+                rect( min(design_pred[[scen]][,pp]),
+                      obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] - 3 * total_err[obs_data$Year == cal_end],
+                      max(design_pred[[scen]][,pp]),
+                      obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] + 3 * total_err[obs_data$Year == cal_end],
+                      col = grey(0.2,0.03), border = "black", lwd = 0.5, lty = 3)
+              }
+            }
 
-    for (yy in yy_plot) {
+            arrows( design_pred[[scen]][,pp],
+                    myem[[scen]]$mean[ , paste0("y", yy) ] - 2 * myem[[scen]]$sd[ , paste0("y", yy) ],
+                    design_pred[[scen]][,pp],
+                    myem[[scen]]$mean[ , paste0("y", yy) ] + 2 * myem[[scen]]$sd[ , paste0("y", yy) ],
+                    code = 3, length = 0.08, angle = 90, lwd = 0.1,
+                    col = AR6_rgb_light[[scen]])
 
-      # SEA LEVEL VS TEMP
-      # Mean projections
+            # TODO: add RCPs! and add names to legend
+            points( unlist(ice_design[,pp])[ice_data$scenario == scen], ice_data[ ice_data$scenario == scen, paste0("y", yy) ],
+                    pch = 16, cex = 0.7) # col = AR6_rgb[[scen]],
 
-      for (gg in temps_list_names) {
+            # testing - finish and rewrite more neatly
+            if (FALSE) {
+              # Get simulations for this scenario if available
+              plot_data <- ice_data[ ice_data$scenario == scen, ]
+              plot_design <- unlist(ice_design[,pp])[ ice_data$scenario == scen ]
 
-        # gsat_year <- paste0("GSAT_", gg)
+              # Add nearest RCPs or reconstructed
+              if (scen == "SSP126") {
+                plot_design <- unlist(ice_design[,pp])[ ice_data$scenario %in% c("RCP26", "SSP126") ]
+                plot_data <- ice_data[ ice_data$scenario %in% c("RCP26", "SSP126"), ]
+              }
+              if (scen == "SSP245") {
+                plot_design <- unlist(ice_design[,pp])[ ice_data$scenario %in% c("RCP45", "SSP245") ]
+                plot_data <- ice_data[ ice_data$scenario %in% c("RCP45", "SSP245"), ]
+              }
+              if (scen == "SSP534-over") {
+                plot_design <- unlist(ice_design[,pp])[ ice_data$scenario %in% c("SSP534-over", "SSP534-over-recon") ]
+                plot_data <- ice_data[ ice_data$scenario %in% c("SSP534-over", "SSP534-over-recon"), ]
+              }
+              if (scen == "SSP585") {
+                plot_design <- unlist(ice_design[,pp])[ ice_data$scenario %in% c("RCP85", "SSP585") ]
+                plot_data <- ice_data[ ice_data$scenario %in% c("RCP85", "SSP585"), ]
+              }
 
-        col_darker <- rgb( 1, 0, 0, alpha = 0.4, maxColorValue = 1)
-        col_paler <- rgb( 1, 0, 0, alpha = 0.2, maxColorValue = 1)
+              points( plot_design, plot_data[ , paste0("y", yy) ],
+                      pch = 16, cex = 0.7) # col = AR6_rgb[[scen]],
+            }
 
-        # * Main effects: GSAT ------------------------------------------------------------
-        plot( design_sa[[gg]][,gg], myem[[gg]]$mean[,paste0("y",yy)],
-              type = "l", lwd = 1.2,
-              main = paste( "Main effect: sea level at",yy,"vs", gg ),
-              xlab = GSAT_lab[[gg]],
-              ylab = paste("Sea level contribution at",yy,"(cm SLE)"),
-              ylim = sle_lim[[yy]] )
-        abline( h = 0 )
-        if (i_s == "GLA") {
-          abline( h = glacier_cap, col = "darkred", lwd = 0.5, lty = 5)
-        }
+          } # param list
 
-        polygon( c( design_sa[[gg]][,gg], rev( design_sa[[gg]][,gg] ) ),
-                 c( myem[[gg]]$mean[ , paste0("y", yy) ] + myem[[gg]]$sd[ , paste0("y", yy) ],
-                    rev( myem[[gg]]$mean[ , paste0("y", yy) ] - myem[[gg]]$sd[ , paste0("y", yy) ] ) ),
-                 border = NA,
-                 col = col_darker )
-        polygon( c( design_sa[[gg]][,gg], rev( design_sa[[gg]][,gg] ) ),
-                 c( myem[[gg]]$mean[ , paste0("y", yy) ] + 2 * myem[[gg]]$sd[ , paste0("y", yy) ],
-                    rev( myem[[gg]]$mean[ , paste0("y", yy) ] - 2 * myem[[gg]]$sd[ , paste0("y", yy) ] ) ),
-                 border = NA,
-                 col = col_paler )
+        } # if prior
 
-        leg_x1 <- min(design_sa[[gg]][,gg])
-        leg_x2 <- max(design_sa[[gg]][,gg])
-        rect( leg_x1, 0.94*sle_lim[[yy]][2], leg_x1 + 0.1*(leg_x2 - leg_x1), 0.9*sle_lim[[yy]][2], col = col_darker, border = NA)
-        text( leg_x1 + 0.1*(leg_x2 - leg_x1), 0.92*sle_lim[[yy]][2], pos = 4, "Mean +/- 1 s.d.")
-        rect( leg_x1, 0.8*sle_lim[[yy]][2], leg_x1 + 0.1*(leg_x2 - leg_x1), 0.75*sle_lim[[yy]][2], col = col_paler, border = NA)
-        text( leg_x1 + 0.1*(leg_x2 - leg_x1), 0.78*sle_lim[[yy]][2], pos = 4, "Mean +/- 2 s.d.")
+        # SLE vs ice inputs: final ------------------------------------------------------------
+        if (data_type == "posterior") {
 
-      } # GSAT loop
+          for (pp in ice_all_list) {
 
-      # * Main effects: ice inputs (cont) ------------------------------------------------------------
+            # SAME AGAIN BUT FINAL PROJECTIONS
 
-      # SEA LEVEL VS ICE MODEL PARAMETERS
+            plot( design_pred[[scen]][,pp], projections[[scen]][,paste0("y",yy)],
+                  pch = 16, cex = 0.7, col = AR6_rgb_light[[scen]],
+                  main = paste("Final projections at",yy,"for", scen_name[[scen]]),
+                  ylab = paste("Sea level contribution at",yy,"(cm SLE)"),
+                  xlab = pp, ylim = sle_lim[[yy]] )
+            abline( h = 0 )
 
-      col_list <- hcl.colors(length(ice_cont_list), palette = "Dark 3")
+            # TODO: add RCPs! and add names to legend
+            points( unlist(ice_design[,pp])[ice_data$scenario == scen], ice_data[ ice_data$scenario == scen, paste0("y", yy) ],
+                    pch = 16, cex = 0.7 ) # col = AR6_rgb[[scen]],
 
-      for (pp in ice_cont_list) {
+            # ADD OBSERVATIONS
+            if (yy == cal_end) {
+              abline( h = obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"],
+                      col = grey(0.2, 0.4), lwd = 1.6)
+              rect( min(design_pred[[scen]][,pp]),
+                    obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] - 3 * obs_data[obs_data$Year == cal_end,"SLE_sd"],
+                    max(design_pred[[scen]][,pp]),
+                    obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] + 3 * obs_data[obs_data$Year == cal_end,"SLE_sd"],
+                    col = grey(0.2,0.04), border = "black", lwd = 0.5, lty = 5)
+              if (plot_level > 2) {
+                rect( min(design_pred[[scen]][,pp]),
+                      obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] - 3 * total_err[obs_data$Year == cal_end],
+                      max(design_pred[[scen]][,pp]),
+                      obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] + 3 * total_err[obs_data$Year == cal_end],
+                      col = grey(0.2,0.03), border = "black", lwd = 0.5, lty = 3)
+              }
+            }
+          } # param list
 
-        col_rgb <- col2rgb( col_list[ which(ice_all_list == pp, arr.ind = TRUE)] )
-        col_darker <- rgb(col_rgb[1L], col_rgb[2L], col_rgb[3L], alpha = 0.4 * 255, maxColorValue = 255)
-        col_paler <- rgb(col_rgb[1L], col_rgb[2L], col_rgb[3L], alpha = 0.2 * 255, maxColorValue = 255)
+        } # if posterior
 
-        plot( design_sa[[pp]][,pp],
-              myem[[pp]]$mean[,paste0("y",yy)],
-              type = "l", lwd = 1.2,
-              main = paste("Main effect: sea level at",yy,"vs", pp),
-              ylab = paste("Sea level contribution at",yy,"(cm SLE)"),
-              xlab = pp, ylim = sle_lim[[yy]])
-        abline( h = 0 )
-        if (i_s == "GLA") {
-          abline( h = glacier_cap, col = "darkred", lwd = 0.5, lty = 5)
-        }
+      } # Year
+    } # SSP
 
-        polygon( c( design_sa[[pp]][,pp],
-                    rev( design_sa[[pp]][,pp] ) ),
-                 c( myem[[pp]]$mean[ , paste0("y", yy) ] + myem[[pp]]$sd[ , paste0("y", yy) ],
-                    rev( myem[[pp]]$mean[ , paste0("y", yy) ] - myem[[pp]]$sd[ , paste0("y", yy) ] ) ),
-                 border = NA,
-                 col = col_darker )
-        polygon( c( design_sa[[pp]][,pp],
-                    rev( design_sa[[pp]][,pp]) ),
-                 c( myem[[pp]]$mean[ , paste0("y", yy) ] + 2 * myem[[pp]]$sd[ , paste0("y", yy) ],
-                    rev( myem[[pp]]$mean[ , paste0("y", yy) ] - 2 * myem[[pp]]$sd[ , paste0("y", yy) ] ) ),
-                 border = NA,
-                 col = col_paler )
-
-        leg_x1 <- min(design_sa[[pp]][,pp])
-        leg_x2 <- max(design_sa[[pp]][,pp])
-        rect( leg_x1, 0.94*sle_lim[[yy]][2], leg_x1 + 0.1*(leg_x2 - leg_x1), 0.9*sle_lim[[yy]][2], col = col_darker, border = NA)
-        text( leg_x1 + 0.1*(leg_x2 - leg_x1), 0.92*sle_lim[[yy]][2], pos = 4, "Mean +/- 1 s.d.")
-        rect( leg_x1, 0.8*sle_lim[[yy]][2], leg_x1 + 0.1*(leg_x2 - leg_x1), 0.75*sle_lim[[yy]][2], col = col_paler, border = NA)
-        text( leg_x1 + 0.1*(leg_x2 - leg_x1), 0.78*sle_lim[[yy]][2], pos = 4, "Mean +/- 2 s.d.")
-
-      } # param list
-
-      # Skip to next year plot if no factors
-      if (length(ice_factor_list) == 1 && is.na(ice_factor_list)) next
-
-      col_list <- hcl.colors(length(ice_factor_list), palette = "Dark 3")
-
-      # * Main effects: ice inputs (fac) ------------------------------------------------------------
-
-      for (pp in ice_factor_list) {
-
-        plot( 1:3, 1:3, type = "n", xaxt = "n",
-              main = paste("Main effect: sea level at",yy,"vs", pp),
-              ylab = paste("Sea level contribution at",yy,"(cm SLE)"),
-              xlab = pp, xlim = c(0,length(ice_factor_values[[pp]])+1), ylim = sle_lim[[yy]], xaxs = "i")
-        axis(side = 1, at = 1:length(ice_factor_values[[pp]]), labels = ice_factor_values[[pp]],
-             cex.axis = 0.6, las = 3)
-        abline( h = 0 )
-
-        col_rgb <- col2rgb( col_list[ which(ice_factor_list == pp, arr.ind = TRUE)] )
-        col_darker <- rgb(col_rgb[1L], col_rgb[2L], col_rgb[3L], alpha = 0.4 * 255, maxColorValue = 255)
-
-        # Levels for factor
-        for (ll in 1:length(ice_factor_values[[pp]])) {
-
-          # Box plot: whiskers
-          lab <- paste0(pp,":",ice_factor_values[[pp]][ll])
-
-          # Default level; terrible coding... xxx
-          # Second row of dummy variable columns in main effects design are all 0s,
-          # i.e. corresponds to default level
-          if (ll == 1) {
-            lab2 <- paste0(pp,":",ice_factor_values[[pp]][2])
-            arrows( ll,
-                    myem[[lab2]]$mean[ 2, paste0("y", yy) ] - 2 * myem[[lab2]]$sd[ 2, paste0("y", yy) ],
-                    ll,
-                    myem[[lab2]]$mean[ 2, paste0("y", yy) ] + 2 * myem[[lab2]]$sd[ 2, paste0("y", yy) ],
-                    lwd = 1.2, angle = 90, length = 0.05, code = 3, col = col_darker)
-            rect( ll - 0.1,
-                  myem[[lab2]]$mean[ 2, paste0("y", yy) ] - myem[[lab2]]$sd[ 2, paste0("y", yy) ],
-                  ll + 0.1,
-                  myem[[lab2]]$mean[ 2, paste0("y", yy) ] + myem[[lab2]]$sd[ 2, paste0("y", yy) ],
-                  col = "white", border = col_darker)
-            lines( ll + 0.1*c(-1,1),
-                   rep(myem[[lab2]]$mean[ 2, paste0("y", yy) ], 2), col = col_darker)
-
-
-          } else { # Other levels
-
-            stopifnot(lab %in% ice_dummy_list)
-
-            arrows( ll,
-                    myem[[lab]]$mean[ 1, paste0("y", yy) ] - 2 * myem[[lab]]$sd[ 1, paste0("y", yy) ],
-                    ll,
-                    myem[[lab]]$mean[ 1, paste0("y", yy) ] + 2 * myem[[lab]]$sd[ 1, paste0("y", yy) ],
-                    lwd = 1.2, angle = 90, length = 0.05, code = 3, col = col_darker)
-            rect( ll - 0.1,
-                  myem[[lab]]$mean[ 1, paste0("y", yy) ] - myem[[lab]]$sd[ 1, paste0("y", yy) ],
-                  ll + 0.1,
-                  myem[[lab]]$mean[ 1, paste0("y", yy) ] + myem[[lab]]$sd[ 1, paste0("y", yy) ],
-                  col = "white", border = col_darker)
-            lines( ll + 0.1*c(-1,1),
-                   rep(myem[[lab]]$mean[ 1, paste0("y", yy) ], 2), col = col_darker)
-
-          }
-        } # factor levels
-      } # ice_factor_list
-
-    } # Year loop
-
-  } # if main_effects
+  } # plot_level >= 2
 
 
 }

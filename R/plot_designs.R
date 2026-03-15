@@ -26,6 +26,8 @@ plot_designs <- function(data_type, plot_level = 0) {
   # SIMULATIONS
   if (data_type == "sims") {
 
+    # GSAT forcings ------------------------------------------------------------
+
     # GSAT
     if (plot_level >= 1) {
 
@@ -116,7 +118,7 @@ plot_designs <- function(data_type, plot_level = 0) {
         cols_to_plot <- cbind(temps, ice_data[, ice_cont_list])
         colnames(cols_to_plot)[1:length(temps_list_names)] <- temps_list_names
 
-        pairs( cols_to_plot, main = paste("Sea level contribution in",yy,"vs all inputs"),
+        pairs( cols_to_plot, main = paste("Sea level contribution in",yy,"vs continuous inputs"),
                lower.panel = NULL, pch = 20, cex = 1.5, col = col_em)
 
       }
@@ -134,7 +136,7 @@ plot_designs <- function(data_type, plot_level = 0) {
         col_em <- colrng_SLE[ cut( ice_data[, paste0("y", yy)  ], breaks = breaks_SLE) ]
 
         pairs( ice_design,
-               main = paste("Sea level contribution in",yy,"vs emulator inputs"),
+               main = paste("Sea level contribution in",yy,"vs all inputs"),
                lower.panel = NULL, pch = 20, cex = 1.5, col = col_em)
       }
     }
@@ -164,7 +166,7 @@ plot_designs <- function(data_type, plot_level = 0) {
               xlab = GSAT_lab[[temps_list_names[tt]]],
               ylab = paste("Sea level contribution at",yy,"(cm SLE)") )
 
-        # PLOT OBSERVATIONS
+        # PLOT OBSERVATIONS # xxx not plotting?
         if (yy == cal_end) {
           abline( h = obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"],
                   col = grey(0.2, 0.4), lwd = 1.6)
@@ -182,16 +184,18 @@ plot_designs <- function(data_type, plot_level = 0) {
           }
         } # plot obs
 
-        leg_y <- 0.9 * max( ice_data[ , paste0("y", yy) ], na.rm = TRUE)
+        leg_y <- 0.95 * max( ice_data[ , paste0("y", yy) ], na.rm = TRUE)
 
+        # Plot simulations
         for (scen in scenario_list) {
           if ( length(ice_data[ ice_data$scenario == scen, paste0("y", yy) ]) > 0 ) {
             points( plot_temps[ice_data$scenario == scen],
                     ice_data[ ice_data$scenario == scen, paste0("y", yy) ],
                     pch = 20, cex = 0.8, col = AR6_rgb[[scen]] )
-            text( min(plot_temps, na.rm = TRUE), leg_y,
-                  scen, pos = 4, col = AR6_rgb[[scen]] )
-            leg_y <- leg_y - 0.1 * leg_y
+            # Legend
+            text( min(plot_temps, na.rm = TRUE), leg_y, cex = 0.5,
+                  scen_name[[scen]], pos = 4, col = AR6_rgb[[scen]] )
+            leg_y <- leg_y - 0.05 * leg_y
           }
         }
 
@@ -202,17 +206,18 @@ plot_designs <- function(data_type, plot_level = 0) {
 
     # (*) SLE vs all inputs ------------------------------------------------------------
     # PLOT: SIMULATED SLE VS EMULATOR/ALL INPUTS
-    # print("Box and scatter plots: sea level contribution vs all model inputs")
+    # Box plots
 
     # Loop over full input list in data file, not just inputs selected for emulation
     for ( pp in ice_param_list_full) {
 
-      # If emulator input or plot all inputs
+      # If continuous ice input or plot all inputs
       if (pp %in% ice_cont_list || plot_level >= 2) {
 
         # If non-missing values exist in column
         if ( length(ice_data[ !is.na(ice_data[ , pp ]), pp ]) > 0 ) {
 
+          # Deal with factor inputs
           if (is.character(ice_data[ 1, pp ])) { param_plot <- factor(ice_data[ , pp ])
           } else param_plot <- ice_data[ , pp ]
 
@@ -226,15 +231,17 @@ plot_designs <- function(data_type, plot_level = 0) {
             # Overplot continuous inputs in scenario colours
             if (! is.character(ice_data[ 1, pp ])){
 
-              leg_y <- 0.9 * max(ice_data[ , paste0("y", yy) ], na.rm = TRUE)
+              leg_y <- 0.95 * max(ice_data[ , paste0("y", yy) ], na.rm = TRUE)
 
               for (scen in scenario_list) {
                 if ( length(ice_data[ ice_data$scenario == scen, paste0("y", yy) ]) > 0 ) {
                   points( param_plot[ice_data$scenario == scen],
                           ice_data[ ice_data$scenario == scen, paste0("y", yy) ],
                           pch = 20, col = AR6_rgb[[scen]], cex = 0.8 )
-                  text( min(param_plot, na.rm = TRUE), leg_y, scen_name[[scen]], pos = 4, col = AR6_rgb[[scen]] )
-                  leg_y <- leg_y - 0.1 * leg_y
+                  # Legend
+                  text( min(param_plot, na.rm = TRUE), leg_y, cex = 0.5,
+                        scen_name[[scen]], pos = 4, col = AR6_rgb[[scen]] )
+                  leg_y <- leg_y - 0.05 * leg_y
                 }
               }
 

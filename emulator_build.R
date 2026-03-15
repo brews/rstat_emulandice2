@@ -840,7 +840,7 @@ if (i_s == "AIS") {
 }
 
 if (i_s == "GIS") {
-  sle_lim[[as.character(cal_end)]] <- c(-1, 2); sle_inc[[as.character(cal_end)]] <- 0.1
+  sle_lim[[as.character(cal_end)]] <- c(-4, 8); sle_inc[[as.character(cal_end)]] <- 0.5
   sle_lim[["2050"]] <- c(-1, 10); sle_inc[["2050"]] <- 0.5
   sle_lim[["2100"]] <- c(-20, 40); sle_inc[["2100"]] <- 1
   sle_lim[["2150"]] <- c(-50, 100); sle_inc[["2150"]] <- 2
@@ -941,22 +941,6 @@ AR6_rgb_light[["SSP534-over"]] <- rgb(146, 57, 122, maxColorValue = 255, alpha =
 AR6_rgb[["SSP534-over-recon"]] <- rgb(146, 57, 122, maxColorValue = 255)
 AR6_rgb_med[["SSP534-over-recon"]] <- rgb(146, 57, 122, maxColorValue = 255, alpha = alpha_med)
 AR6_rgb_light[["SSP534-over-recon"]] <- rgb(146, 57, 122, maxColorValue = 255, alpha = alpha_light)
-
-# PLOT RANGES
-
-# SL simulations are up with glacier cap
-
-# Observations
-if (i_s == "GIS") ylim_obs <- c(-1.5,2)
-if (i_s == "AIS") ylim_obs <- c(-10,12)
-
-# Hugonnet for glaciers, not IMBIE!
-# and do list or similar for regions
-if (i_s == "GLA") {
-  ylim_obs <- c(-1.5,2)
-  if (reg %in% c("RGI12", "RGI18")) ylim_obs <- c(-0.01,0.03)
-}
-
 
 # ________________----
 # START ------------------------------------------------------------
@@ -1596,13 +1580,22 @@ cat("\nPlot simulator projections\n", file = logfile_build, append = TRUE)
 # Plot simulations (some with observations)
 # Can repeat from main.R to tweak or add model discrepancy to history matching window
 if (plot_level > 0) {
-  pdf( file = paste0( outdir, out_name, "_SIMS.pdf"),
+
+  pdf( file = paste0( outdir, out_name, "_DESIGN.pdf"),
        width = 9, height = 5)
   emulandice2::plot_designs("sims", plot_level)
-  emulandice2::plot_timeseries("sims", plot_level)
-  emulandice2::plot_scatter("sims", "none", plot_level) # xxx check if future vs past plots added now
-  emulandice2::plot_distributions("sims", plot_level) # xxx check if doing anything or covered by plot_design...
   dev.off()
+
+  pdf( file = paste0( outdir, out_name, "_SIMS.pdf"),
+       width = 9, height = 5)
+  emulandice2::plot_timeseries("sims", plot_level)
+  # Need to tidy and fix
+  #emulandice2::plot_scatter("sims", "none", plot_level)
+  # Need to add sims option to plot SLE histograms
+  #emulandice2::plot_distributions("sims", plot_level) # xxx check if doing anything or covered by plot_design...
+  dev.off()
+
+
 }
 
 # Impute missing ---------------------------------------------------------------
@@ -2050,7 +2043,7 @@ if (temp_input == "mean") {
 
     pdf( file = paste0( outdir, out_name, "_MEFF.pdf"),
          width = 9, height = 5)
-    emulandice2::plot_scatter("prior", "main_effects", plot_level)
+    emulandice2::plot_MEFF()
     dev.off()
 
     # SA uniform design: mean +/- 2 s.d.
@@ -2316,7 +2309,7 @@ to_save <- c("climate_data", # CLIMATE MODEL SIMULATION DATA
              "validation_type", "validation_years", # Save these for validation plotting
              "ice_name", # Nice ice source name for plots
              "GSAT_lab", # Nice plotting labels for GSAT means
-             "sle_lim", "sle_inc", "ylim_obs", # Plotting ranges and increments (inc not used currently)
+             "sle_lim", "sle_inc", # Plotting ranges and increments (inc not used currently)
              "AR6_rgb", "AR6_rgb_light", "AR6_rgb_med" # Plotting colours
 )
 

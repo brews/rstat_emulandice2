@@ -13,7 +13,7 @@ SVDimpute(X, k = NULL, pmin = 1 - 1e-04, maxit = 5)
 
 \item{pmin}{minimum proportional variation, used to set `k` if `k = NULL`, see Details.}
 
-\item{maxit}{maxium number of iterations.}
+\item{maxit}{maximum number of iterations.}
 }
 \value{
 A matrix like `X` but with the `NA`s imputed, plus an attribute `"param"`, a list with `pmin`, `k`, and `rank` if `maxit > 0`.

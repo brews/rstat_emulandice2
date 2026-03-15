@@ -11,6 +11,8 @@
 
 plot_distributions <- function(data_type, plot_level = 0) {
 
+  # TODO: xxx add sims option
+
   # PROJECTION HISTOGRAMS AND PDFS
 
   cfb_pale <- rgb(100,149,237, alpha = 50, maxColorValue = 255)
