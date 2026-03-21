@@ -40,6 +40,43 @@ make_emu <- function(designX, responseF, forcingX, r = NULL, thresh = 0.999) {
     stopifnot(r == round(r), 0 < r, r <= n)
   stopifnot(length(thresh) == 1, 0 < thresh, thresh < 1)
 
+  # Colinearity check ----------------------------------------------------------
+  # Cursor AI
+
+  # Check ensemble is not rank deficient
+  # (e.g. in GIS 2300 ensemble, resolution and init_yrs are confounded)
+
+  # Compute rank deficiency
+  if (qr(designX)$rank < ncol(designX)) {
+    cat(sprintf("\nERROR: ensemble is rank deficient: rank is %i which is less
+                than number of columns %i\n",
+                qr(designX)$rank, ncol(designX)),
+        file = emu_log_file, append = TRUE)
+
+    # Identify redundant (aliased) columns from QR pivot
+    qr_obj <- qr(designX)
+    dep_idx <- qr_obj$pivot[(qr_obj$rank + 1):ncol(designX)]
+    confounded <- colnames(designX)[dep_idx]
+
+    # Fallback names if missing
+    if (is.null(confounded)) confounded <- paste0("V", dep_idx)
+
+    cat("\nAliased/redundant columns (drop one or more):\n",
+        file = emu_log_file, append = TRUE)
+    cat(paste(confounded, collapse = ", "), "\n", file = emu_log_file, append = TRUE)
+
+    # Print alias equations
+    tmp_df <- as.data.frame(designX)
+    tmp_df$.__y__ <- rnorm(nrow(tmp_df))
+    ali <- alias(stats::lm(.__y__ ~ ., data = tmp_df))
+
+    cat("\nAlias structure (Complete):\n", file = emu_log_file, append = TRUE)
+    capture.output(print(ali$Complete), file = emu_log_file, append = TRUE)
+
+    # Stop if rank deficient, so user can decide
+    stopifnot(qr(designX)$rank == ncol(designX))
+
+  }
 
   # SVD -----------------------------------------------------------------------
 
@@ -220,13 +257,15 @@ make_emu <- function(designX, responseF, forcingX, r = NULL, thresh = 0.999) {
     if ( include_factors) {
 
       if (temp_input == "mean") {
-          cat("\nmake_emu build: dropping factors from trends:\n", file = emu_log_file, append = TRUE)
-          cat(paste(c(ice_dummy_list, "\n"), collapse = " "), file = emu_log_file, append = TRUE)
 
-          trendX <- trendX[ , ! colnames(trendX) %in% ice_dummy_list ]
+        # Drop dummy variables from GP (design); they are still in the trends
+        cat("\nmake_emu build: dropping factors from GP design:\n", file = emu_log_file, append = TRUE)
+        cat(paste(c(ice_dummy_list, "\n"), collapse = " "), file = emu_log_file, append = TRUE)
 
-          cat("\nmake_emu build: keeping in trend:\n", file = emu_log_file, append = TRUE)
-          cat(paste(c(colnames(trendX), "\n"), collapse = " "), "\n", file = emu_log_file, append = TRUE)
+        designX <- designX[ , ! colnames(designX) %in% ice_dummy_list ]
+
+        cat("\nmake_emu build: keeping only the continuous inputs in GP design:\n", file = emu_log_file, append = TRUE)
+        cat(paste(c(colnames(designX), "\n"), collapse = " "), "\n", file = emu_log_file, append = TRUE)
 
       }
     }
@@ -404,32 +443,29 @@ make_emu <- function(designX, responseF, forcingX, r = NULL, thresh = 0.999) {
       if ( include_factors) {
         if (temp_input == "mean") {
 
-            # tt <- which( input_cont_list %in% colnames(ice_design), arr.ind = TRUE )
-            # trendXout <- trendXout[ , tt, drop = FALSE]
+          # Drop dummy variables from GP - they are still in the trends
+          cat("\nmake_emu pred: keeping only the continuous inputs in GP design:\n", file = emu_log_file, append = TRUE)
 
-            cat("\nmake_emu pred: keeping in trend:\n", file = emu_log_file, append = TRUE)
+          if (multi_sim) {
+            designXout <- designXout[ , ! design_names %in% ice_dummy_list ]
+            cat(paste(colnames(designXout), collapse = " "), "\n", file = emu_log_file, append = TRUE)
+          } else {
+            designXout <- designXout[ ! design_names %in% ice_dummy_list ]
+            cat(paste(names(designXout), collapse = " "), "\n", file = emu_log_file, append = TRUE) # WORKS
+            save_names <- names(designXout)
 
-            if (multi_sim) {
-              trendXout <- trendXout[ , ! design_names %in% ice_dummy_list ]
-              cat(paste(colnames(trendXout), collapse = " "), "\n", file = emu_log_file, append = TRUE)
-            } else {
-              trendXout <- trendXout[ ! design_names %in% ice_dummy_list ]
-              cat(paste(names(trendXout), collapse = " "), "\n", file = emu_log_file, append = TRUE)
-              save_names <- names(trendXout)
+            # Make into 1 x ncol matrix again
+            designXout <- matrix(designXout, nrow = 1)
+            colnames(designXout) <- save_names
 
-              # Make into 1 x ncol matrix again
-              trendXout <- matrix(trendXout, nrow = 1)
-              names(trendXout) <- save_names
+          }
 
-            }
-
-        }
+        } # temp_input == "mean"
       } # if include_factors
 
       # Original list of inputs before lasso drops inert
       cat("\nmake emu pred: original list of inputs:\n", file = emu_log_file, append = TRUE)
       cat("GP (",ncol(designXout),"):", paste(colnames(designXout), collapse = " "),"\n", file = emu_log_file, append = TRUE)
-      cat("GP:", paste(names(designXout), collapse = " "),"\n", file = emu_log_file, append = TRUE) # for factors in GP
 
       if (multi_sim) {
         cat("Trends (",ncol(trendXout),"):", paste(colnames(trendXout), collapse = " "),"\n", file = emu_log_file, append = TRUE)
@@ -437,48 +473,49 @@ make_emu <- function(designX, responseF, forcingX, r = NULL, thresh = 0.999) {
         cat("Trends (",ncol(trendXout),"):", paste(names(trendXout), collapse = " "),"\n", file = emu_log_file, append = TRUE)
       }
 
-      cat("\n\nmake emu pred: checking for inert inputs...\n", file = emu_log_file, append = TRUE)
+      cat("\nmake emu pred: checking for inert inputs...\n", file = emu_log_file, append = TRUE)
 
-      # Drop inert inputs
-      if (multi_sim) {
+      # Check if any design columns to drop still
+      if ( length(setdiff(colnames(designXout), keep_inputs)) == 0 ) {
 
-        designXout <- designXout[ , colnames(designXout) %in% keep_inputs ]
-        trendXout <- trendXout[ , colnames(trendXout) %in% keep_inputs ]
+        cat("No inert inputs to drop\n", file = emu_log_file, append = TRUE)
 
       } else {
 
-        save_names_all <- colnames(designXout)
-        #designXout <- designXout[ colnames(designXout) %in% keep_inputs ] # comment out when drop factors GP
-        trendXout <- trendXout[ names(trendXout) %in% keep_inputs ]
+        # Drop inert inputs
+        if (multi_sim) {
 
-        # Reformat as matrix
-        # Drop names by hand for designXout as can't retrieve from names/colnames
-        save_names <- save_names_all[ save_names_all %in% keep_inputs]
-#        designXout <- matrix(designXout, nrow = 1) # ditto
-#        colnames(designXout) <- save_names # ditto
+          designXout <- designXout[ , colnames(designXout) %in% keep_inputs ]
+          trendXout <- trendXout[ , colnames(trendXout) %in% keep_inputs ]
 
-        # xxx TEST: when drop factors from trends
-        cat(save_names_all, "\n", file = emu_log_file, append = TRUE)
-        cat(save_names, "\n", file = emu_log_file, append = TRUE)
-        designXout <- designXout[ names(designXout) %in% keep_inputs ]
-        designXout <- matrix(designXout, nrow = 1)
-        names(designXout) <- save_names
+        } else { # 1 sim (i.e. LOO)
 
-        save_names <- names(trendXout)
-        trendXout <- matrix(trendXout, nrow = 1)
-        colnames(trendXout) <- save_names
+          save_names_all <- colnames(designXout)
+          save_names <- save_names_all[ save_names_all %in% keep_inputs]
+          cat(save_names_all, "\n", file = emu_log_file, append = TRUE)
+          cat(save_names, "\n", file = emu_log_file, append = TRUE)
 
+          designXout <- designXout[ colnames(designXout) %in% keep_inputs ]
+          trendXout <- trendXout[ names(trendXout) %in% keep_inputs ]
+
+          # Reformat as matrices
+          designXout <- matrix(designXout, nrow = 1)
+          colnames(designXout) <- save_names
+
+          save_names <- names(trendXout)
+          trendXout <- matrix(trendXout, nrow = 1)
+          colnames(trendXout) <- save_names
+
+        }
       }
 
       # Output active inputs for prediction
-      cat("\nmake emu pred: keeping only active inputs in emulator design:\n",
+      cat("\nmake emu pred: keeping these inputs in emulator design:\n",
           file = emu_log_file, append = TRUE)
       cat("GP final (",ncol(designXout),"):", paste(colnames(designXout), collapse = " "),"\n", file = emu_log_file, append = TRUE)
-      cat("GP:", paste(names(designXout), collapse = " "),"\n", file = emu_log_file, append = TRUE) # for factors in GP
       cat("Trends final (",ncol(trendXout),"):", paste(colnames(trendXout), collapse = " "),"\n\n", file = emu_log_file, append = TRUE)
 
       # Moved Jonty's ncol check for designXout from start of robj to here, and add for trendXout to be sure
-      # cat(ncol(designXout), ncol(trendXout), EMU[[1]]@p, ncol(EMU[[1]]@X) - 1, "\n", file = emu_log_file, append = TRUE)
       stopifnot(ncol(designXout) == EMU[[1]]@p) # @p GP inputs in PC1 emulator build
       stopifnot(ncol(trendXout) == ncol(EMU[[1]]@X) - 1) # @X: Trends in PC1 emulator build (drop col of 1s)
 
@@ -579,7 +616,7 @@ make_emu <- function(designX, responseF, forcingX, r = NULL, thresh = 0.999) {
     if (!is.matrix(designXout) && length(designXout) == d) {
       dim(designXout) <- c(1L, d)
     } else {
-      # dropped ncol check because requested design might include extra (inert) inputs
+      # moved ncol check inside pred_emu because requested design might include extra (inert) inputs
       stopifnot(is.matrix(designXout)) # ncol(designXout) == d)
     }
     m_out <- nrow(designXout)

@@ -664,7 +664,14 @@ if (i_s == "GIS") {
   # No factors for GISM
   # xxx Make init_yrs continuous?
   ice_factor_list_model <- list()
-  ice_factor_list_model[["CISM"]] <- c("thermodyn", "RCM_init", "init_yrs", "elev_feedback")
+  ice_factor_list_model[["CISM"]] <- c("thermodyn", "RCM_init")
+
+  # init_yrs and elev_feedback are redundant in 2300 ensemble, so only add to 2100
+  # (if redundant in that ensemble, emulator will now stop with rank deficiency complaint)
+  if (final_year <= 2100) {
+    ice_factor_list_model[["CISM"]] <- c(ice_factor_list_model[["CISM"]], "init_yrs", "elev_feedback")
+  }
+
   ice_factor_list_model[["IMAUICE"]] <- c("sliding")
   ice_factor_list_model[["ElmerIce"]] <- c("sliding")
 
@@ -1876,7 +1883,6 @@ if (temp_input == "mean") {
   # Drop inert inputs not used for emulation from design, for plots etc
   if (length(emu_inputs) < length(colnames(Xtrain))) {
 
-
     cat("\nEmulator dropped", length(colnames(Xtrain)) - length(emu_inputs),
         "inert inputs from design:", setdiff(colnames(Xtrain), emu_inputs), "\n",
         file = logfile_build, append = TRUE)
@@ -2005,7 +2011,7 @@ if (temp_input == "mean") {
 
   design_pred <- emulandice2::load_design_to_pred("unif_temps", N_unif)
 
-  cat(paste("\nPredict for uniform temp designs:\n"), file = logfile_build, append = TRUE)
+  cat("\nPredict for uniform temp designs:\n", file = logfile_build, append = TRUE)
 
   for (scen in scenario_list) {
 
@@ -2063,7 +2069,7 @@ if (temp_input == "mean") {
 
 #' # Validate
 
-# Validate ---------------------------------------------------------------------
+# Validate: LOO ---------------------------------------------------------------------
 
 # LOO VALIDATION: i.e. train on all-but-one, for validation
 # Should only be used for small datasets
@@ -2151,7 +2157,12 @@ if (validation_type == "loo") {
 
 } # validation_type == "loo"
 
+# Validate: TVT ---------------------------------------------------------------------
+# Train and test validation
 
+# TVT VALIDATION: training, validation and test (but currently use one test set, not two)
+# i.e. predict left out set for validation
+# Main method of validation
 
 # Builds emulators on 70% of data (or 70% of N_max_em for large datasets),
 # and plots + keeps results for requested timeslices
@@ -2170,9 +2181,35 @@ if (validation_type == "tvt") {
   # using main emulator build (emu_mv)
   # Note inputs are already scaled
   # ice_design_scaled has same number of rows as ice_data
-  # xxx ice_design_scaled is also called XX?
-  # This predicts full time series so could plot these xxx
+  # This predicts full time series
+
   emu_test <- emulandice2::emulator_predict( ice_design_scaled[ test_set, ], forcing_prior = "mean" )
+
+  # Get test dataset to validate with
+  # YY is the full dataset (with any imputed values), so this should be all but YY[ train ]
+  test_data <- YY[ test_set, ]
+
+  # Plot example timeseries
+  n_plot <- 10
+  run_cols <- hcl.colors(n_plot, palette = "Dark 3")
+
+  pdf( file = paste0( outdir, out_name, "_VALIDATION_TIMESERIES.pdf"),
+       width = 10, height = 5)
+
+  plot( years_em, emu_test$mean[1,], type = "n", main = "Example simulator and mean emulator projections",
+        xlab = "Year", ylab = "Sea level contribution (cm SLE)",
+        ylim = range(emu_test$mean[1:n_plot,]) )
+  abline(h=0)
+  for ( ss in 1:n_plot) {
+    lines(years_em, emu_test$mean[ ss, ], col = run_cols[ss], lty = 5)
+    lines(years_em, test_data[ ss, ], col = run_cols[ss])
+  }
+  plot( years_em, emu_test$mean[1,], type = "n", main = "Example emulator errors",
+        xlab = "Year", ylab = "Emulated minus simulated (cm SLE)",
+        ylim = c(-1,1)*max(abs(emu_test$mean[1:n_plot,] - test_data[ 1:n_plot, ])) )
+  abline(h=0)
+  for ( ss in 1:n_plot) lines(years_em, emu_test$mean[ ss, ] - test_data[ ss, ], col = run_cols[ss])
+  dev.off()
 
   # Unlike LOO, should be no missing data in these: i.e. values for all test sims
   test_mean <- list()
@@ -2187,10 +2224,6 @@ if (validation_type == "tvt") {
 
     test_mean[[yind]] <- emu_test$mean[ , yind]
     test_sd[[yind]] <- emu_test$sd[ , yind]
-
-    # Get test dataset to validate with
-    # YY is the full dataset (with any imputed values), so this should be all but YY[ train ]
-    test_data <- YY[ test_set, ]
 
     # Misses
     test_wrong[[ yind ]] <- test_data[ , yind] > ( test_mean[[yind]] + 2*test_sd[[yind]] ) |
@@ -2349,8 +2382,7 @@ cat(paste("\nSaved emulator object to RData file:",emu_file,"\n"), file = logfil
 if (write_sa) {
 
   # Main effects and uniform designs; emulator SA predictions for these; validation years
-  to_save_sa <- c( "design_sa", "design_pred", "myem", "validation_years", "validation_type",
-                   "ice_design_scaled", "design_pred_scaled", "emu_test" ) # xxx for testing
+  to_save_sa <- c( "design_sa", "design_pred", "myem", "validation_years", "validation_type")
 
   # LOO validation results
   if (validation_type == "loo") {
@@ -2359,7 +2391,7 @@ if (write_sa) {
 
   # Train and test validation results
   if ( validation_type == "tvt" ) {
-    to_save_sa <- c(to_save_sa, "test_mean", "test_sd", "test_wrong", "test_set" )
+    to_save_sa <- c(to_save_sa, "test_mean", "test_sd", "test_wrong", "test_set", "emu_test" ) # full trajectory
   }
 
   # Save file
