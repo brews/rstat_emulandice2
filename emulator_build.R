@@ -1489,6 +1489,40 @@ for (tt in 1:length(temps_list_names)) {
                                              ' rel. to ',temps_baseline,'-',temps_baseline+N_temp_yrs-1,' (degC)')
 }
 
+# Factor level merging ---------------------------------------------------------------
+#' ## Merging of similar small factor levels
+# Based on knowledge of model similarity/difference, and flagged by % of ensemble (output below)
+# As characteristics are very granular in dataset and should be grouped
+# Differences between simulations go into model term or nugget
+
+if (i_s == "AIS" ) {
+
+  # Longer timescales checked first
+  if (final_year > 2150) {
+
+    cat(paste("\nMerging some similar and/or rare factor levels:\n"), file = logfile_build, append = TRUE)
+    cat(paste("\nsliding_law was:",paste(unique(ice_data[,"sliding_law"]), collapse = " ")), file = logfile_build, append = TRUE)
+
+    # Merge all sliding laws that have effective pressure dependence
+    # (small numbers in ensemble, and similar response)
+    # Based on conversations with Bill Lipscombe and Helene Seroussi
+    ice_data[ ice_data$sliding_law == "power_law_Tsai", "sliding_law" ] <- "eff_pressure"
+    ice_data[ ice_data$sliding_law == "Zoet-Iverson", "sliding_law" ] <- "eff_pressure"
+    ice_data[ ice_data$sliding_law == "Coulomb_reg_300", "sliding_law" ] <- "eff_pressure"
+    ice_data[ ice_data$sliding_law == "Coulomb_reg_50", "sliding_law" ] <- "eff_pressure"
+    cat(paste("\nand is now:",paste(unique(ice_data[,"sliding_law"]), collapse = " "),"\n"), file = logfile_build, append = TRUE)
+
+    # Merge 2 types of GIA in IMAUICE ensemble (still small fraction)
+    cat(paste("\nGIA was:",paste(unique(ice_data[,"GIA"]), collapse = " ")), file = logfile_build, append = TRUE)
+    ice_data[ ice_data$GIA == "3D_strong", "GIA" ] <- "3D"
+    ice_data[ ice_data$GIA == "3D_weak", "GIA" ] <- "3D"
+    cat(paste("\nand is now:",paste(unique(ice_data[,"GIA"]), collapse = " "),"\n"), file = logfile_build, append = TRUE)
+
+  }
+
+}
+
+
 # One-hot encoding ---------------------------------------------------------------
 #' ## One-hot encoding of factors
 
@@ -1506,15 +1540,28 @@ if ( include_factors ) {
     cat(paste("Levels:", length(ff_vals), "\n"), file = logfile_build, append = TRUE)
 
     # First alphabetical value will be reference/nominal: ff_vals[1]
-    cat(paste("Adding dummy variables with reference value:", ff_vals[1], "\n"), file = logfile_build, append = TRUE)
+    cat(paste("Adding",length(ff_vals) - 1,"dummy variables with reference value:", ff_vals[1], "\n"), file = logfile_build, append = TRUE)
 
     for ( vv in ff_vals ) {
 
-      # Drop first (reference) level to avoid collinearity
-      if (vv == ff_vals[1]) next
+      frac_level <- (100.0*nrow(ice_data[ice_data[, ff] == vv, ]))/nrow(ice_data)
 
       # Name of column is factor:level
-      cat(paste0("Generating column ", ff, ":", vv, "\n"), file = logfile_build, append = TRUE)
+      cat(sprintf("Factor:level %s:%s (%.1f%% of ensemble)\n", ff, vv, frac_level),
+          file = logfile_build, append = TRUE)
+      if (frac_level < 5.0) cat(paste0("Warning: small fraction of ensemble is ",vv,
+                                       " - consider merging this with other level(s)\n"),
+                                file = logfile_build, append = TRUE)
+
+      # Drop first (reference) level to avoid collinearity
+      if (vv == ff_vals[1]) {
+        cat(sprintf("- reference value\n"),
+            file = logfile_build, append = TRUE)
+        next
+      }
+
+      cat(sprintf("- generating dummy variable column for %s:%s\n", ff, vv),
+          file = logfile_build, append = TRUE)
 
       # Set to 1 or 0
       ice_design <- cbind(ice_design, ifelse(ice_data[, ff] == vv, 1, 0 ) )
