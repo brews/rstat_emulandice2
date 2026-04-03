@@ -75,8 +75,8 @@ make_emu <- function(designX, responseF, forcingX, r = NULL, thresh = 0.999) {
     cat("\nAlias structure (Complete):\n", file = emu_log_file, append = TRUE)
     capture.output(print(ali$Complete), file = emu_log_file, append = TRUE)
 
-    # Stop if rank deficient, so user can decide
-    stopifnot(qr(designX)$rank == ncol(designX))
+    # Warn if rank deficient, so user can decide
+    warning("Ensemble is rank deficient: consider dropping one or more inputs")
 
   }
 
@@ -274,12 +274,19 @@ make_emu <- function(designX, responseF, forcingX, r = NULL, thresh = 0.999) {
     }
   }
 
+  # Double-check for NAs
+  stopifnot(! anyNA(designX) )
+  stopifnot(! anyNA(trendX) )
+
   # Train emulator -----------------------------------------------------------------------
 
   # Emulator model for each principal component
   EMU <- lapply(1L:r, function(j) {
 
     if (emulator_type == "statGP") {
+
+      # Double-check for NAs
+      stopifnot(! anyNA(U[, j]) )
 
       emu_pc <- RobustGaSP::rgasp(design = designX, response = U[, j], trend = cbind(1, trendX),
                                   nugget.est = TRUE , lower_bound = lower_bound,
