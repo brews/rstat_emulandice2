@@ -882,12 +882,12 @@ if (i_s == "GLA") {
 
   # Specific region over-rides
   if (reg == "RGI01") {
-    sle_lim[[as.character(cal_end)]] <- c(-0.1, 1); sle_inc[[as.character(cal_end)]] <- 0.1
-    sle_lim[["2050"]] <- c(-10, 1.5*glacier_cap); sle_inc[["2050"]] <- 0.5
-    sle_lim[["2100"]] <- c(-10, 1.5*glacier_cap); sle_inc[["2100"]] <- 0.5
-    sle_lim[["2150"]] <- c(-15, 2*glacier_cap); sle_inc[["2150"]] <- 0.5
-    sle_lim[["2200"]] <- c(-25, 2*glacier_cap); sle_inc[["2200"]] <- 1
-    sle_lim[["2300"]] <- c(-5, 2*glacier_cap); sle_inc[["2300"]] <- 0.2 # -70, 1 XXX why was it so big ??
+    sle_lim[[as.character(cal_end)]] <- c(-3, 4); sle_inc[[as.character(cal_end)]] <- 0.1
+    sle_lim[["2050"]] <- c(-2, 1.5*glacier_cap); sle_inc[["2050"]] <- 0.5
+    sle_lim[["2100"]] <- c(-2, 1.5*glacier_cap); sle_inc[["2100"]] <- 0.5
+    sle_lim[["2150"]] <- c(-2, 2*glacier_cap); sle_inc[["2150"]] <- 0.5
+    sle_lim[["2200"]] <- c(-2, 2*glacier_cap); sle_inc[["2200"]] <- 1
+    sle_lim[["2300"]] <- c(-10, 2*glacier_cap); sle_inc[["2300"]] <- 0.2 # -70, 1 XXX why was it so big ??
   }
   if (reg == "RGI19") {
     sle_lim[[as.character(cal_end)]] <- c(-0.1, 1); sle_inc[[as.character(cal_end)]] <- 0.1
@@ -1534,7 +1534,7 @@ if ( include_factors ) {
   # Adding factors
   for ( ff in ice_factor_list ) {
 
-    cat(paste("Factor to add:", ff, "\n"), file = logfile_build, append = TRUE)
+    cat(paste("\nFactor to add:", ff, "\n"), file = logfile_build, append = TRUE)
     ff_vals <- sort(unique(ice_data[ ,ff]))
 
     cat(paste("Levels:", length(ff_vals), "\n"), file = logfile_build, append = TRUE)

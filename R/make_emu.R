@@ -30,6 +30,8 @@ make_emu <- function(designX, responseF, forcingX, r = NULL, thresh = 0.999) {
   cat("_____________________________________\n", file = emu_log_file, append = TRUE)
   cat("make_emu: building emulator...\n", file = emu_log_file, append = TRUE)
 
+  ## Put any miscellaneous output in log file
+  sink(file = emu_log_file, append = TRUE)
   # Check other inputs
   stopifnot(is.matrix(designX))
   m <- nrow(designX)
@@ -48,7 +50,7 @@ make_emu <- function(designX, responseF, forcingX, r = NULL, thresh = 0.999) {
 
   # Compute rank deficiency
   if (qr(designX)$rank < ncol(designX)) {
-    cat(sprintf("\nERROR: ensemble is rank deficient: rank is %i which is less
+    cat(sprintf("\nNOTE: ensemble is rank deficient: rank is %i which is less
                 than number of columns %i\n",
                 qr(designX)$rank, ncol(designX)),
         file = emu_log_file, append = TRUE)
@@ -110,9 +112,6 @@ make_emu <- function(designX, responseF, forcingX, r = NULL, thresh = 0.999) {
 
   cat(sprintf("\nmake_emu build: SLE SVD r = %i, scree = %.3f%%\n", r, 100 * scree[r]), file = emu_log_file, append = TRUE)
 
-  ## build emulators, hide output
-  sink(file = emu_log_file, append = TRUE)
-
   # Model selection -----------------------------------------------------------------------
   # Use lasso regression to drop inert inputs (beta coefficients zero)
 
@@ -157,8 +156,12 @@ make_emu <- function(designX, responseF, forcingX, r = NULL, thresh = 0.999) {
 
     # Names of inputs with non-zero coefficients
     keep_inputs_PC <- x_names[ abs(all_coef) > coef_tol ]
-    cat(sprintf("Terms active for PC%i: \n", j), file = emu_log_file, append = TRUE)
+    cat(sprintf("Active terms for PC%i: \n", j), file = emu_log_file, append = TRUE)
     cat(keep_inputs_PC,"\n\n", file = emu_log_file, append = TRUE)
+
+    cat(sprintf("Inert terms for PC%i: \n", j), file = emu_log_file, append = TRUE)
+    cat(x_names[ ! x_names %in% keep_inputs_PC ],"\n\n", file = emu_log_file, append = TRUE)
+
 
     # Assign colours to symbols for plot
     sym_fill <- rep("lightgrey", length(x_names))
@@ -516,6 +519,7 @@ make_emu <- function(designX, responseF, forcingX, r = NULL, thresh = 0.999) {
       cat("Trends final (",ncol(trendXout),"):", paste(colnames(trendXout), collapse = " "),"\n\n", file = emu_log_file, append = TRUE)
 
       # Moved Jonty's ncol check for designXout from start of robj to here, and add for trendXout to be sure
+      # Same inputs used for all PCs so can compare with PC1
       stopifnot(ncol(designXout) == EMU[[1]]@p) # @p GP inputs in PC1 emulator build
       stopifnot(ncol(trendXout) == ncol(EMU[[1]]@X) - 1) # @X: Trends in PC1 emulator build (drop col of 1s)
 

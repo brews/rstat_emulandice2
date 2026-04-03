@@ -328,7 +328,7 @@ cat("LOAD DESIGNS\n", file = logfile_results, append = TRUE)
 # Design: priors -----------------------------------------------------------------------
 
 cat("Design: priors\n", file = logfile_results, append = TRUE)
-print("Design: priors")
+#print("Design: priors")
 
 # Design "AR6_2LM" uses 2-layer model (FaIR) GSAT projections for SSPs
 # i.e. climate_data_file from FACTS is used in this function
@@ -344,7 +344,7 @@ N_temp <- length( design_prior[[1]][ , 1] )
 # Design: posteriors -----------------------------------------------------------------------
 
 cat("Design: posteriors (only ice model inputs are calibrated, not climate)\n", file = logfile_results, append = TRUE)
-print("Design: posterior")
+#print("Design: posterior")
 
 # Posterior design: sample ice model input posteriors
 # i.e. from large priors using weights from Bayesian calibration
