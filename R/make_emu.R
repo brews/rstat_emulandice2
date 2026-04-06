@@ -80,6 +80,33 @@ make_emu <- function(designX, responseF, forcingX, r = NULL, thresh = 0.999) {
 
   }
 
+  # Further checks ------------------------------------------------
+  # Conditioning: Cursor AI
+
+  # 1. Condition number of the ensemble design
+  # If k > 1e12–1e15, that’s problematic
+  k <- kappa(designX, exact = TRUE)
+  cat("\nCondition number of design:", k, "\n", file = emu_log_file, append = TRUE)
+
+  # 2. Check for (near) zero-variance columns
+  # Zero or tiny variance columns can break QR/kappa
+  cat("\nCheck for zero/near-zero variance:\n", file = emu_log_file, append = TRUE)
+  cat(paste(colnames(designX), collapse = " "),"\n", file = emu_log_file, append = TRUE)
+  test_var <- apply(designX, 2, function(z) {
+    v <- var(z)
+    #    c(var = v, sd = sqrt(v))
+  })
+  cat(paste(test_var, collapse = " "),"\n", file = emu_log_file, append = TRUE)
+  cat("Minimum: ", min(test_var),"\n", file = emu_log_file, append = TRUE)
+
+  # Very large magnitudes can overflow
+  # 4. Singular values (alternative to kappa)
+  s <- svd(scale(designX))$d
+
+  # Very small min(s) or tiny ratio suggests ill-conditioning
+  cat("\nSmallest singular value:", min(s), "\n", file = emu_log_file, append = TRUE)
+  cat("Ratio smallest/largest:", min(s)/max(s), "\n", file = emu_log_file, append = TRUE)
+
   # SVD -----------------------------------------------------------------------
 
   ## SVD of outputs
@@ -234,8 +261,8 @@ make_emu <- function(designX, responseF, forcingX, r = NULL, thresh = 0.999) {
 
   n_drop <- length(x_names) - length(keep_inputs)
 
-  # if (FALSE) { # don't drop for now
   if ( n_drop > 0 ) {
+
     cat("\nEmulator dropped these", n_drop, "inert inputs:\n", file = emu_log_file, append = TRUE)
     cat( sort(setdiff(x_names, keep_inputs)), "\n", file = emu_log_file, append = TRUE)
 
@@ -249,7 +276,6 @@ make_emu <- function(designX, responseF, forcingX, r = NULL, thresh = 0.999) {
     cat(colnames(designX),"\n", file = emu_log_file, append = TRUE)
 
   }
-  #}
 
   if ( emulator_type == "statGP") {
 

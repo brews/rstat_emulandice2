@@ -657,15 +657,18 @@ if (i_s == "AIS") {
   # Add model switch and GCM vs RCM-forced factor:
   if ( length(model_list) > 1 ) ice_factor_list <- c(ice_factor_list, "model")
 
-  # Option to drop columns
-  # drop_list <- c("init_atmos", "init_ocean", "refreeze", "PDD_ice", "PDD_snow",
-  #                 "sliding_exponent", "overturning_PICO",
-  #                 "forcing_type")
-  #  cat("Dropping these inputs if present for parsimony:", paste(drop_list, collapse = ", "), "\n",
-  #      file = logfile_build, append = TRUE)
-  #  ice_cont_list <- ice_cont_list[ ! ice_cont_list %in% drop_list ]
-  #  ice_factor_list <- ice_factor_list[ ! ice_factor_list %in% drop_list ]
+  drop_list <- NA
 
+  # 2300: terms confounding with models and/or small % of ensemble
+  if (final_year > 2200) drop_list <- c("init_atmos", "init_ocean", "GIA", "shelf_collapse", "sliding_law", # factors
+                                        "overturning_PICO" ) # continuous
+
+  if ( length(drop_list) > 1 || (length(drop_list) == 1 && ! is.na(drop_list)) ) {
+    cat("Dropping these inputs:", paste(drop_list, collapse = ", "), "\n",
+        file = logfile_build, append = TRUE)
+    ice_cont_list <- ice_cont_list[ ! ice_cont_list %in% drop_list ]
+    ice_factor_list <- ice_factor_list[ ! ice_factor_list %in% drop_list ]
+  }
 
 }
 
