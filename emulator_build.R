@@ -271,7 +271,7 @@ if (i_s == "GIS") {
 if (i_s == "GLA") {
 
   # All models (do not change!)
-  model_list_full <- c( "GloGEM", "OGGM" ) #, "GO" )
+  model_list_full <- c( "GloGEM", "OGGM", "GO" )
 
   # Pick models, or set to model_list_full to use all
   model_list <- model_list_full
