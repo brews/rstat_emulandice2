@@ -17,7 +17,7 @@ get_glacier_cap <- function(region) {
   # Total: 324.3 ± 84.1 mm SLE
   max_glacier <- NA
 
-  # Mean values and presumable 1 s.d. (mm SLE)
+  # Mean values and presumable 1 s.d. (mm SLE); all errors are 26% of mean
   if (reg == "RGI01") max_glacier <- c(43.3, 11.2)
   if (reg == "RGI02") max_glacier <- c(2.6, 0.7)
   if (reg == "RGI03") max_glacier <- c(64.8, 16.8)

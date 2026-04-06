@@ -140,18 +140,20 @@ select_sims <- function(select_type) {
     #__________________________________________________
     # GLACIER SELECTIONS
 
-    if ( i_s == "GLA" && !is.na(complete_thresh) ) {
+    if ( i_s == "GLA" ) {
 
       # Excluding using data quality flag "complete":
 
-      # Index to keep (GloGEM is NA so don't test)
-      complete_sel <- ice_data$complete >= complete_thresh | is.na(ice_data$complete)
+      # Index to keep (GloGEM is NA, and so is OGGM 2100 forcing ensemble: keep these)
+      complete_sel <- is.na(ice_data$complete) |
+        (ice_data$model == "OGGM" & ice_data$complete >= complete_thresh[["OGGM"]]) |
+        (ice_data$model == "GO" & ice_data$complete >= complete_thresh[["GO"]])
 
       # Restrict dataset
       ice_data <- ice_data[ complete_sel , ]
 
-      cat( sprintf("\nAfter restricting to >= %.0f%% complete glaciers (where known): %i\n",
-                   100.0*complete_thresh, dim(ice_data)[1]),
+      cat( sprintf("\nAfter applying completion thresholds of %.0f%% to OGGM and %0.f%% to GO: %i\n",
+                   complete_thresh[["OGGM"]], complete_thresh[["GO"]], dim(ice_data)[1]),
            file = logfile_build, append = TRUE )
 
     }
