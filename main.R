@@ -135,8 +135,8 @@ set.seed(seed)
 # Plots: 0 = none, 1 = main, 2 = nearly all, 3 = replot SIMS.pdf with model error
 plot_level <- 2
 
-# Write workspace to .RData for nice plotting later xxx Big! just save some objects
-write_rdata <- FALSE
+# Write workspace to .RData for nice plotting later
+write_rdata <- TRUE # xxx probably obsolete now just saving few objects
 
 # Number of 2LM projections of GSAT expected per SSP
 # (and therefore total number of samples for book-keeping by GSAT value)
@@ -510,7 +510,10 @@ for (scen in scenario_list) {
 cat("\nRebaselining all projections to year:", baseyear, "\n", file = logfile_results, append = TRUE)
 
 # Could tweak calculate_sle_anom to do this
+
 for (scen in scenario_list) {
+
+  # TODO: add zero at start first xxx
 
   # Mean emulator projections
   myem[[scen]]$mean <- myem[[scen]]$mean - myem[[scen]]$mean[, paste0("y",baseyear)]
@@ -670,21 +673,37 @@ cat("\n\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\
 cat("END OF RESULTS\n", file = logfile_results, append = TRUE)
 cat("\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\\n\n", file = logfile_results, append = TRUE)
 
-# Save workspace
-if (write_rdata) save.image( paste0(outdir_facts, out_name, "_RESULTS.RData") )
-
-
 #' # Write other outputs
-# Write other outputs --------------------------------------------------------------------
+# Save RData --------------------------------------------------------------------
 
-# WRITE PROJECTIONS TO CSV AND NETCDF FILES
+# Save workspace for plotting
+if (write_rdata) {
+
+  to_save_results <- c( "ice_data", # sims (format used by emulator, i.e. imputed, and only at years_em)
+                        "first_year", "final_year", "scen", # dates + scenario
+                        "projections", "projections_quant", # prior projections
+                        "proj_post", "proj_post_quant", # posterior projections
+                        "proj_weights", # weights
+                        "years_em", "q_list", "baseyear", # Year, baseline and quantiles for projections
+                        "obs_data", "obs_change", "obs_change_err", # calibration
+                        "total_err", "cal_start", "cal_end",
+                        "sle_lim", "ice_name", "scen_name", # plotting
+                        "AR6_rgb", "AR6_rgb_med", "AR6_rgb_light" )
+  if (i_s == "GLA") to_save_results <- c( to_save_results,"glacier_cap")
+
+  save(list = to_save_results, file = paste0(outdir_facts, out_name, "_RESULTS.RData"))
+  #save.image( paste0(outdir_facts, out_name, "_RESULTS.RData") )
+}
+
+
+# Write netcdf and plots --------------------------------------------------------------------
+
+# WRITE PROJECTIONS TO NETCDF (and optionally CSV)
 write_outputs(write_csv)
-
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 # END OF FACTS ANALYSIS
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
 
 if (plot_level > 0) {
 
