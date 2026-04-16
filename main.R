@@ -215,10 +215,10 @@ if (plot_level > 2) {
 # Design: calibration -----------------------------------------------------------------------
 
 # This overwrites uniform design_pred from RData build file (as intended, for reusing plot scripts)
-# design_pred <- load_design_to_pred( "AR6_2LM" ) # XXXX
+# design_pred <- emulandice2::load_design_to_pred( "AR6_2LM" ) # XXXX
 
 # Fixed GSAT design for calibrating ice model parameters
-design_fixed <- load_design_to_pred( "fixed_temp", N_prior ) # Large N, 3 fixed GSAT
+design_fixed <- emulandice2::load_design_to_pred( "fixed_temp", N_prior ) # Large N, 3 fixed GSAT
 
 # Grab names (i.e. these are set in design function rather than passed to it)
 fixed_temp_list <- names(design_fixed)
@@ -244,7 +244,7 @@ cat("\nPredict:\n", file = logfile_results, append = TRUE)
 # from emulator_build.R (reusing scenario-based plotting code)
 myem <- list()
 
-# emulator_predict() calls emu_mv with type = "var"
+# emulandice2::emulator_predict() calls emu_mv with type = "var"
 # using emulator object saved to RData workspace file
 # Here scen is fixed_temp not a scenario, but keep label for consistency
 for (scen in fixed_temp_list) {
@@ -252,14 +252,14 @@ for (scen in fixed_temp_list) {
   cat(paste("Fixed climate:",scen,"\n"), file = logfile_results, append = TRUE)
 
   # Rescale priors using same scaling factors as for simulator inputs
-  # xxx safer to put scaling in emulator_predict()
+  # xxx safer to put scaling in emulandice2::emulator_predict()
   design_fixed_scaled_cont <- scale(design_fixed[[scen]][ , input_cont_list],
                                     center = inputs_centre,
                                     scale = inputs_scale )
   design_fixed_scaled <- as.data.frame( design_fixed[[scen]]  )
   design_fixed_scaled[ , input_cont_list] <- design_fixed_scaled_cont
 
-  if (temp_input == "mean") myem[[scen]] <- emulator_predict( design_fixed_scaled, forcing_prior = "mean" )
+  if (temp_input == "mean") myem[[scen]] <- emulandice2::emulator_predict( design_fixed_scaled, forcing_prior = "mean" )
 
 }
 
@@ -269,7 +269,7 @@ projections <- list()
 for (scen in fixed_temp_list) {
 
   # Generate projections by sampling mean + uncertainty
-  projections[[scen]] <- emulator_uncertainty(myem[[scen]])
+  projections[[scen]] <- emulandice2::emulator_uncertainty(myem[[scen]])
 
 }
 
@@ -304,8 +304,8 @@ for (scen in fixed_temp_list) {
 myem_weights <- list()
 proj_weights <- list()
 for (scen in fixed_temp_list) {
-  myem_weights[[scen]] <- do_calibration(dist_mean[[scen]])
-  proj_weights[[scen]] <- do_calibration(dist_proj[[scen]])
+  myem_weights[[scen]] <- emulandice2::do_calibration(dist_mean[[scen]])
+  proj_weights[[scen]] <- emulandice2::do_calibration(dist_proj[[scen]])
 }
 
 cat("_________________________\n", file = logfile_results, append = TRUE)
@@ -315,10 +315,10 @@ cat("LOAD DESIGNS\n", file = logfile_results, append = TRUE)
 # Both are generated separately, so GSAT is not calibrated:
 #
 # (a) Prior = samples from ice model priors exactly once for each FaIR GSAT simulation
-# this is done in load_design_to_pred()
+# this is done in emulandice2::load_design_to_pred()
 # (b) Posterior = samples from ice model posteriors (weighted priors), bolts on FaIR prior
 # (i.e. because GSAT is intentionally not calibrated)
-# this is done here, using previous output from load_design_to_pred() call [design_fixed]
+# this is done here, using previous output from emulandice2::load_design_to_pred() call [design_fixed]
 
 # Note these are also resampled for each SSP, introducing more random noise
 
@@ -335,7 +335,7 @@ cat("Design: priors\n", file = logfile_results, append = TRUE)
 
 # Prior design: ice model input priors plus FaIR GSAT prior for each SSP
 # Independently samples from ice model priors, once for each FaIR trajectory
-design_prior <- load_design_to_pred( "AR6_2LM" )
+design_prior <- emulandice2::load_design_to_pred( "AR6_2LM" )
 
 # Get number of FaIR samples per scenario
 N_temp <- length( design_prior[[1]][ , 1] )
@@ -382,7 +382,7 @@ for (scen in scenario_list) {
 
   # Projections: PRIOR MEAN
   # Returns $mean, $sd, $var
-  if (temp_input == "mean") myem[[scen]] <- emulator_predict( design_prior_scaled, forcing_prior = "mean")
+  if (temp_input == "mean") myem[[scen]] <- emulandice2::emulator_predict( design_prior_scaled, forcing_prior = "mean")
 
 }
 
@@ -409,7 +409,7 @@ for (scen in scenario_list) {
 
   # Projections: PRIOR FINAL
   # Returns sample of final projections by sampling emulator $mean and $var
-  projections[[scen]] <- emulator_uncertainty(myem[[scen]])
+  projections[[scen]] <- emulandice2::emulator_uncertainty(myem[[scen]])
 
   #' ## Cap glacier final prior projections
   if (i_s == "GLA" &&
@@ -453,7 +453,7 @@ for (scen in scenario_list) {
 
   # Projections: POSTERIOR MEAN
   # Returns $mean, $sd, $var
-  if (temp_input == "mean") myem_post[[scen]] <- emulator_predict( design_pred_scaled, forcing_prior = "mean")
+  if (temp_input == "mean") myem_post[[scen]] <- emulandice2::emulator_predict( design_pred_scaled, forcing_prior = "mean")
 
 }
 
@@ -481,7 +481,7 @@ for (scen in scenario_list) {
 
   # Projections: POSTERIOR FINAL
   # Returns sample of final projections by sampling emulator $mean and $var
-  proj_post[[scen]] <- emulator_uncertainty(myem_post[[scen]])
+  proj_post[[scen]] <- emulandice2::emulator_uncertainty(myem_post[[scen]])
 
   #' ## Cap glacier final posterior projections
   if (i_s == "GLA" &&
@@ -699,7 +699,7 @@ if (write_rdata) {
 # Write netcdf and plots --------------------------------------------------------------------
 
 # WRITE PROJECTIONS TO NETCDF (and optionally CSV)
-write_outputs(write_csv)
+emulandice2::write_outputs(write_csv)
 
 # +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 # END OF FACTS ANALYSIS
