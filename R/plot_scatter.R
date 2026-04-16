@@ -273,16 +273,16 @@ plot_scatter <- function(data_type, design_name, plot_level = 0) {
                         pch = 16, cex = 0.7) # col = AR6_rgb[[scen]],
               } else points( temps[ice_data$scenario == scen, gg], plot_data[ , paste0("y", yy) ],
                              pch = 16, cex = 0.7) # col = AR6_rgb[[scen]],
-            }
-            # Assume more than one simulation...
-            if ( length(plot_data) > 1 ) {
-              apply( plot_data, 1,
-                     function(x) points( x[ paste0("y",cal_end) ], x[ paste0("y",yy) ],
-                                         pch = 16, cex = 0.5, col = "black" ) )
-              points( xlim[1] + 0.05*(xlim[2] - xlim[1]), yleg,
-                      pch = 16, cex = 0.7, col = "black" )
-              text(x = xlim[1] + 0.05*(xlim[2] - xlim[1]), y = yleg, pos = 4, "Simulated", cex = 0.7)
 
+              # Assume more than one simulation...
+              if ( length(plot_data) > 1 ) {
+                apply( plot_data, 1,
+                       function(x) points( x[ paste0("y",cal_end) ], x[ paste0("y",yy) ],
+                                           pch = 16, cex = 0.5, col = "black" ) )
+                points( xlim[1] + 0.05*(xlim[2] - xlim[1]), yleg,
+                        pch = 16, cex = 0.7, col = "black" )
+                text(x = xlim[1] + 0.05*(xlim[2] - xlim[1]), y = yleg, pos = 4, "Simulated", cex = 0.7)
+              }
             }
 
           } # if prior

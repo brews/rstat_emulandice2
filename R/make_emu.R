@@ -554,6 +554,10 @@ make_emu <- function(designX, responseF, forcingX, r = NULL, thresh = 0.999) {
       # Moved Jonty's ncol check for designXout from start of robj to here, and add for trendXout to be sure
       # Same inputs used for all PCs so can compare with PC1
       stopifnot(ncol(designXout) == EMU[[1]]@p) # @p GP inputs in PC1 emulator build
+
+      cat("CHECK:",ncol(EMU[[1]]@X) - 1, "\n", file = emu_log_file, append = TRUE)
+      #cat(EMU[[1]]@X, "\n", file = emu_log_file, append = TRUE)
+
       stopifnot(ncol(trendXout) == ncol(EMU[[1]]@X) - 1) # @X: Trends in PC1 emulator build (drop col of 1s)
 
       # Predict for set of new design points using each PC emulator in list

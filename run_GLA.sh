@@ -41,15 +41,16 @@ do
   Rscript --vanilla -e "library(emulandice2)" -e "source('emulator_build.R')" GLA $region $final_year
 
   # Emulator file name
-  if [ "$region" == "01" -o "$region" == "04" -o "$region" == "05" -o "$region" == "07" -o "$region" == "19" ]
+  if [ "$region" == "01" -o "$region" == "03" -o "$region" == "04" -o "$region" == "05" -o "$region" == "07" -o "$region" == "19" ]
   then
        covar="pow_exp_01"
   else
        covar="pow_exp_20"
   fi
 
-  # Over-write with tests
-  if [ "$region" == "03" -o "$region" == "17" ]
+  # Over-write with tests # xxx should I set this one back?
+  #if [ "$region" == "03" -o "$region" == "17" ]
+  if [ "$region" == "17" ]
   then
     covar="pow_exp_10"
   fi

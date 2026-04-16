@@ -1662,7 +1662,7 @@ if (plot_level > 0) {
        width = 9, height = 5)
   emulandice2::plot_timeseries("sims", plot_level)
   # Need to tidy and fix
-  #emulandice2::plot_scatter("sims", "none", plot_level)
+  #emulandice2::plot_scatter("sims", "none", plot_level) # shown in SA plots as black dots (not always RCPs)
   # Need to add sims option to plot SLE histograms
   #emulandice2::plot_distributions("sims", plot_level) # xxx check if doing anything or covered by plot_design...
   dev.off()
@@ -1754,7 +1754,7 @@ if (impute_sims != "none") {
   }
 }
 
-# NOTE: now using ice_data_impute for all simulation data and plots
+# i.e. use imputed data for all future simulation data and plots
 ice_data[ , paste0("y", years_em)] <- ice_data_impute
 
 # Rebaseline by subtracting value in year cal_end
@@ -1775,7 +1775,7 @@ if ( read_sims_only) stop("Stopping after reading and plotting simulations (not 
 # Inputs
 XX <- ice_design_scaled
 
-# Outputs: includes any imputed values
+# Outputs: includes any imputed values xx redundant naming - could remove here and later (and ALL_validation.R)
 YY <- ice_data[ , paste0("y", years_em) ]
 
 # Train emulators with:
@@ -1800,7 +1800,7 @@ train_subset <- FALSE
 
 # Only do this selection if not using LOO validation later
 # except if reproducing deliverable, which set limit of 1000 for all
-# Note uses of ice_data not YY here are fine: same number of rows as YY (which has imputed years)
+# Note uses of ice_data not YY here are fine: same number of rows as YY (which has imputed years) xxx redundant naming
 if ( validation_type != "loo" | # case 3,4
      ( nrow(ice_data) > 1000L &&  validation_type == "loo" && deliverable_test)) { # case 1
 
