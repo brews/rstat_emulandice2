@@ -35,8 +35,8 @@ load_obs <- function() {
     # XXX Check this is OK - some dates are 31/12 not 1/1
     obs_file[ ,1] <- 2000:2020
 
-    # Convert Gt/yr to cm mass loss
-    obs_file[ , 2:3] <- obs_file[ , 2:3] / (10 * 362.5)
+    # Convert Gt/yr to mm SLE
+    obs_file[ , 2:3] <- obs_file[ , 2:3] / 362.5
     # Convert to sea level rise
     obs_file[ , 2] <- -1* obs_file[ , 2]
 
@@ -66,6 +66,9 @@ load_obs <- function() {
       obs_file <- obs_file[ , c("Year","Cumulative.mass.balance..mm.", "Cumulative.mass.balance.uncertainty..mm.") ]
       names(obs_file)[2:3] <- c("SLE", "SLE_sd")
 
+      # Uncertainties are negative relative to mean in IMBIE 2021
+      obs_file[,3] <- -1.0 * obs_file[,3]
+
     } else {
 
       obs_file <- obs_file[ , c("Date","Cumulative mass balance anomaly (Gt)",
@@ -81,8 +84,9 @@ load_obs <- function() {
         obs_file[,1] <- as.numeric(format(as.Date(obs_file[,1],tryFormats = c("%d/%m/%Y")),"%Y"))
       }
 
-      # Convert cumulative Gt to mm SLE
-      obs_file[,2:3] <- obs_file[,2:3] / ( -1 * 362.5 )
+      # Convert cumulative Gt mass change to mm SLE
+      obs_file[,2:3] <- obs_file[,2:3] / 362.5
+      obs_file[,2] <- -1.0 * obs_file[,2]
 
       names(obs_file) <- c( "Year", "SLE", "SLE_sd")
 
