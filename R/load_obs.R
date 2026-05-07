@@ -20,26 +20,69 @@ load_obs <- function() {
 
   if (i_s == "GLA") {
 
-    # Read regional file
-    obs_filename <- sprintf("%s/GLA/Hugonnet/time_varying_glacier_areas/dh_%02i_rgi60_reg_cumul.csv", inputs_ext, reg_num)
+    cat("\nload_obs: requested glacier_data is", glacier_data, "\n", file = logfile_build, append = TRUE)
 
-    cat("\nload_obs: reading observations file\n", obs_filename, file = logfile_build, append = TRUE)
-    obs_file <- read.csv(obs_filename)
+    if (glacier_data == "Hugonnet") {
 
-    obs_file <- obs_file[ , c("time", "dm", "err_dm") ]
+      # Extended Data Table file
+      obs_filename <- sprintf("%s/GLA/Hugonnet/ED_table_1_2_data.csv", inputs_ext)
 
-    # Get every 12th value because these have uncertainties - check this is right XXX
-    obs_file <- obs_file[ 1 + (0:20*12), ]
+      cat("\nload_obs: reading observations file\n", obs_filename, file = logfile_build, append = TRUE)
+      obs_file <- read.csv(obs_filename)
 
-    # Convert dates to round years for now
-    # XXX Check this is OK - some dates are 31/12 not 1/1
-    obs_file[ ,1] <- 2000:2020
+      # Select region
+      obs_file <- obs_file[ obs_file$reg == reg_num, ]
+
+      # Select columns: time periods and mass change (Gt)
+      # obs_file <- obs_file[ , c("time", "dm", "err_dm") ]
+      obs_file <- obs_file[ , c("period", "dmdt", "err_dmdt") ]
+
+      # Total mass loss for period - 20 year mean
+      obs_file[ obs_file$period == "2000-01-01_2020-01-01", 2:3] <- 20.0* obs_file[ obs_file$period == "2000-01-01_2020-01-01", 2:3]
+
+      # 5 year means
+      obs_file[ obs_file$period == "2000-01-01_2005-01-01", 2:3] <- 5.0* obs_file[ obs_file$period == "2000-01-01_2005-01-01", 2:3]
+      obs_file[ obs_file$period == "2005-01-01_2010-01-01", 2:3] <- 5.0* obs_file[ obs_file$period == "2005-01-01_2010-01-01", 2:3]
+      obs_file[ obs_file$period == "2010-01-01_2015-01-01", 2:3] <- 5.0* obs_file[ obs_file$period == "2010-01-01_2015-01-01", 2:3]
+      obs_file[ obs_file$period == "2015-01-01_2020-01-01", 2:3] <- 5.0* obs_file[ obs_file$period == "2015-01-01_2020-01-01", 2:3]
+
+    } # unit conversion and rename columns happens below
+
+    if (glacier_data == "GlaMBIE") {
+
+      # Regional file
+      obs_filename <- Sys.glob(sprintf("%s/GLA/GlaMBIE/GlaMBIE_Data_DOI_10.5904_wgms-glambie-2024-07/glambie_results_20240716/calendar_years/%i_*.csv",
+                                       inputs_ext, reg_num))
+
+      cat("\nload_obs: reading observations file\n", obs_filename, file = logfile_build, append = TRUE)
+      obs_file <- read.csv(obs_filename)
+
+      obs_file <- obs_file[ , c("start_dates", "combined_gt", "combined_gt_errors") ]
+
+      # Cumulative sum of changes
+      tmp1 <- cumsum(obs_file[,2])
+
+      # Errors: square root of cumulative sum of squared errors
+      tmp2 <- sqrt(cumsum(obs_file[,3]**2))
+
+      # Add baseline row
+      obs_file <- rbind(rep(NA, 3), obs_file)
+      obs_file[1, 1] <- 1999
+      obs_file[ , 2] <- c(0, tmp1)
+      obs_file[ , 3] <- c(0, tmp2)
+
+      # GlaMBIE quotes +/- 1.96 s.d. so convert this to 1 s.d.
+      obs_file[ ,3] <- obs_file[ ,3] / 1.96
+
+    } # conversion happens below
 
     # Convert Gt/yr to mm SLE
     obs_file[ , 2:3] <- obs_file[ , 2:3] / 362.5
+
     # Convert to sea level rise
     obs_file[ , 2] <- -1* obs_file[ , 2]
 
+    # xxx change to Period or similar as some are multi-year
     names(obs_file) <- c("Year", "SLE", "SLE_sd")
 
   } else {
@@ -72,7 +115,7 @@ load_obs <- function() {
     } else {
 
       obs_file <- obs_file[ , c("Date","Cumulative mass balance anomaly (Gt)",
-                                                  "Cumulative mass balance anomaly uncertainty (Gt)") ]
+                                "Cumulative mass balance anomaly uncertainty (Gt)") ]
 
       # Get December rows for year total in cumulative sum
       # Rename with year

@@ -186,6 +186,12 @@ if (deliverable_test) {
   }
 }
 
+# Glacier dataset for calibration
+if (i_s == "GLA") {
+  glacier_data <- "Hugonnet"
+  stopifnot(glacier_data %in% c("Hugonnet", "GlaMBIE"))
+}
+
 print("************************************************************************************************")
 print("Hello! Welcome to emulandice2: build")
 print("************************************************************************************************")
@@ -979,6 +985,14 @@ AR6_rgb_light[["SSP534-over-recon"]] <- rgb(146, 57, 122, maxColorValue = 255, a
 
 # Needs to be before select_sims for history matching filtering of glaciers
 obs_data <- emulandice2::load_obs()
+
+# Sanity check observations
+cat("\n\nFirst and last sea level observations (cm SLE, 1 s.d.):\n", file = logfile_build, append = TRUE)
+cat(sprintf("%s: %.4f +/- %.4f\n%s: %.4f +/- %.4f\n",
+            obs_data[1,"Year"], obs_data[1,"SLE"], obs_data[1,"SLE_sd"], # first
+            obs_data[nrow(obs_data),"Year"],
+            obs_data[nrow(obs_data),"SLE"], obs_data[nrow(obs_data),"SLE_sd"] ), # last
+    file = logfile_build, append = TRUE)
 
 #' ## Load climate and ice simulations
 # Load sims: climate ---------------------------------------------------------------------
