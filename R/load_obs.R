@@ -18,10 +18,12 @@
 
 load_obs <- function() {
 
+  # GLA -----------------------------------------------------------------------
   if (i_s == "GLA") {
 
     cat("\nload_obs: requested glacier_data is", glacier_data, "\n", file = logfile_build, append = TRUE)
 
+    # Hugonnet -----
     if (glacier_data == "Hugonnet") {
 
       # Extended Data Table file
@@ -48,6 +50,7 @@ load_obs <- function() {
 
     } # unit conversion and rename columns happens below
 
+    # GlaMBIE -----
     if (glacier_data == "GlaMBIE") {
 
       # Regional file
@@ -57,7 +60,8 @@ load_obs <- function() {
       cat("\nload_obs: reading observations file\n", obs_filename, file = logfile_build, append = TRUE)
       obs_file <- read.csv(obs_filename)
 
-      obs_file <- obs_file[ , c("start_dates", "combined_gt", "combined_gt_errors") ]
+      # Get mass changes (Gt)
+      obs_file <- obs_file[ , c("end_dates", "combined_gt", "combined_gt_errors") ]
 
       # Cumulative sum of changes
       tmp1 <- cumsum(obs_file[,2])
@@ -67,7 +71,7 @@ load_obs <- function() {
 
       # Add baseline row
       obs_file <- rbind(rep(NA, 3), obs_file)
-      obs_file[1, 1] <- 1999
+      obs_file[1, 1] <- 2000
       obs_file[ , 2] <- c(0, tmp1)
       obs_file[ , 3] <- c(0, tmp2)
 
@@ -87,6 +91,7 @@ load_obs <- function() {
 
   } else {
 
+    # Ice sheets -----
     if (deliverable_test) {
       if (i_s == "GIS") obs_file <- read.csv(paste0(inputs_ext,"/GIS/IMBIE/imbie_greenland_2021_mm.csv"))
       if (i_s == "AIS") obs_file <- read.csv(paste0(inputs_ext,"/AIS/IMBIE/imbie_antarctica_2021_mm.csv"))

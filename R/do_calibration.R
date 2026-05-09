@@ -14,7 +14,7 @@
 do_calibration <- function(distances) {
 
   # Calculate weights with Gaussian univariate likelihood
-  weightsraw <- sapply( distances, function(x) exp( -0.5 * sum( x * x , na.rm=TRUE) / (obs_change_err * obs_change_err) ) )
+  weightsraw <- sapply( distances, function(x) exp( -0.5 * sum( x * x , na.rm=TRUE) / (tot_err * tot_err) ) )
   weights <- weightsraw / sum( weightsraw )
 
   return(weights)

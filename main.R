@@ -184,8 +184,7 @@ cat("Prior choices:", prior_choices,"\n",  file = logfile_results, append = TRUE
 #' # Set model discrepancy
 # Model error -----------------------------------------------------------------------
 
-# Model discrepancy
-# xxx Using multiple of obs error for now
+# Model discrepancy - a multiple of obs error
 if (i_s == "GLA") { scale_mod_err = 6
 } else scale_mod_err = 3
 stopifnot( scale_mod_err > 1 )
@@ -196,6 +195,15 @@ cat(paste("\nModel error for calibration: using",scale_mod_err,"x obs error", "\
 
 # Calculate combined discrepancy
 total_err <- sqrt(obs_data[,"SLE_sd"]^2 + model_err^2)
+
+# Save for total change e.g. for plots
+# xxx TODO: multiple time periods for IMBIE
+if (i_s == "GLA" && glacier_data == "Hugonnet") { tot_err <- total_err
+} else tot_err <- total_err[obs_data$Year == cal_end]
+
+cat(paste0("\nObserved change (", cal_start,"-", cal_end, "):\n"), file = logfile_results, append = TRUE)
+cat(sprintf("%.4f +/- %.4f cm SLE (3 s.d. obs error)\n", obs_change, 3.0*obs_err), file = logfile_results, append = TRUE)
+cat(sprintf("%.4f +/- %.4f cm SLE (3 s.d. total error)\n", obs_change, 3.0*tot_err), file = logfile_results, append = TRUE)
 
 #' # Option to replot simulations
 # Replot sims -----------------------------------------------------------------------
@@ -281,13 +289,6 @@ cat("LIKELIHOODS AND WEIGHTS\n", file = logfile_results, append = TRUE)
 
 #' ## Calculate model-obs differences
 
-# xxx Make this multivariate! and rename because confusing
-obs_change <- obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"]
-obs_change_err <- total_err[obs_data$Year == cal_end]
-
-cat(paste0("\nObserved change (", cal_start,"-", cal_end, "):\n"), file = logfile_results, append = TRUE)
-cat(sprintf("%.3f +/- %.3f cm SLE (3 sigma total error)\n\n", obs_change, 3*obs_change_err), file = logfile_results, append = TRUE)
-
 # Calculate difference between each ensemble member (mean and final) and observations
 dist_mean <- list()
 dist_proj <- list()
@@ -300,7 +301,7 @@ for (scen in fixed_temp_list) {
   dist_proj[[scen]] <- projections[[scen]][, paste0("y",cal_end) ] - obs_change
 }
 
-# Save normalised weights
+# Calculate normalised weights - this uses tot_err in likelihood
 myem_weights <- list()
 proj_weights <- list()
 for (scen in fixed_temp_list) {
@@ -685,7 +686,7 @@ if (write_rdata) {
                         "proj_post", "proj_post_quant", # posterior projections
                         "proj_weights", # weights
                         "years_em", "q_list", "baseyear", # Year, baseline and quantiles for projections
-                        "obs_data", "obs_change", "obs_change_err", # calibration
+                        "obs_data", "obs_change", "obs_err", "tot_err", # calibration
                         "total_err", "cal_start", "cal_end",
                         "sle_lim", "ice_name", "scen_name", # plotting
                         "AR6_rgb", "AR6_rgb_med", "AR6_rgb_light" )

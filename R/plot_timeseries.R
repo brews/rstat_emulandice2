@@ -121,25 +121,33 @@ plot_timeseries <- function(data_type, plot_level = 0) {
             # Offset so mean in cal_start is zero
 
             # Mean
-            lines( obs_data[,"Year"], obs_data[,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"],
-                   col = "black", lwd = 1.5) # grey(0.2, 0.4)
+            lines( obs_change, col = "black", lwd = 1.5)
+
+
+            # Switch from polygon of annual values to uncertainty interval at end of trend
+            # because Hugonnet is not annual and not using annual for calibration
+
             # Mean +- 3 x obs_error
             if (plot_scale == "zoom") {
-              polygon( c(obs_data[,"Year"], rev(obs_data[,"Year"])),
-                       c( obs_data[,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] + 3 * obs_data[,"SLE_sd"],
-                          rev(obs_data[,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] - 3 * obs_data[,"SLE_sd"])),
-                       col = grey(0.2,0.05), border = "black", lwd = 0.5, lty = 2)
+#              polygon( c(obs_data[,"Year"], rev(obs_data[,"Year"])),
+#                       c( obs_data[,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] + 3 * obs_data[,"SLE_sd"],
+#                          rev(obs_data[,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] - 3 * obs_data[,"SLE_sd"])),
+#                       col = grey(0.2,0.05), border = "black", lwd = 0.5, lty = 2)
+              arrows( cal_end, obs_change - 3.0*obs_err,
+                      cal_end, obs_change + 3.0*obs_err,
+                      angle = 90, code = 3, lwd = 2, length = 0.05 )
             }
-
 
             # mean +- 3 x total_error
             if (plot_level > 2) {
-
-              polygon( c(obs_data[,"Year"], rev(obs_data[,"Year"])),
-                       c( obs_data[,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] + 3 * total_err,
-                          rev(obs_data[,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] - 3 * total_err)),
-                       col = grey(0.2,0.05), border = "black", lwd = 0.5, lty = 1)
-            }
+#              polygon( c(obs_data[,"Year"], rev(obs_data[,"Year"])),
+#                       c( obs_data[,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] + 3 * total_err,
+#                          rev(obs_data[,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] - 3 * total_err)),
+#                       col = grey(0.2,0.05), border = "black", lwd = 0.5, lty = 1)
+              arrows( cal_end, obs_change - 3.0*tot_err,
+                      cal_end, obs_change + 3.0*tot_err,
+                      angle = 90, code = 3, length = 0.05 )
+              }
 
             #}
 

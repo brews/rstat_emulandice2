@@ -994,6 +994,22 @@ cat(sprintf("%s: %.4f +/- %.4f\n%s: %.4f +/- %.4f\n",
             obs_data[nrow(obs_data),"SLE"], obs_data[nrow(obs_data),"SLE_sd"] ), # last
     file = logfile_build, append = TRUE)
 
+# Calculate and print total sea level contribution over observational period
+# Hugonnet is already the total change
+if (i_s == "GLA" && glacier_data == "Hugonnet") {
+  obs_period <- "2000-01-01_2020-01-01"
+  obs_change <- obs_data[obs_data$Year == obs_period, "SLE"]
+  obs_err <- obs_data[obs_data$Year == obs_period, "SLE_sd"]
+} else {
+  obs_change <- obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"]
+  obs_err <- obs_data[obs_data$Year == cal_end,"SLE_sd"]
+  obs_period <- paste0( cal_start, "-", cal_end)
+}
+cat(sprintf("\nObserved sea level change (cm SLE, %s):\n", obs_period), file = logfile_build, append = TRUE)
+cat(sprintf("%.4f +/- %.4f cm SLE (+/- 1 s.d. obs error)\n", obs_change, obs_err),
+    file = logfile_build, append = TRUE)
+cat(sprintf("%.4f +/- %.4f cm SLE (+/- 3 s.d obs error)\n", obs_change, 3*obs_err), file = logfile_build, append = TRUE)
+
 #' ## Load climate and ice simulations
 # Load sims: climate ---------------------------------------------------------------------
 
@@ -1665,6 +1681,7 @@ cat("\nPlot simulator projections\n", file = logfile_build, append = TRUE)
 
 # Plot simulations (some with observations)
 # Can repeat from main.R to tweak or add model discrepancy to history matching window
+# xxx different baseline to observations because not imputed yet - switch off obs plotting with plot_level?
 if (plot_level > 0) {
 
   pdf( file = paste0( outdir, out_name, "_DESIGN.pdf"),
@@ -1779,6 +1796,25 @@ ice_data <- emulandice2::calculate_sle_anom(ice_data, baseline=cal_start)
 # Sims only for testing: stop here
 #save.image(file="~/PROTECT/emulandice2/sims_impute.RData")
 if ( read_sims_only) stop("Stopping after reading and plotting simulations (not an error!)", call. = FALSE)
+
+# Re-plot for imputed - now same baseline as observations
+if (plot_level > 0) {
+
+  pdf( file = paste0( outdir, out_name, "_DESIGN_IMPUTED.pdf"),
+       width = 9, height = 5)
+  emulandice2::plot_designs("sims", plot_level)
+  dev.off()
+
+  pdf( file = paste0( outdir, out_name, "_SIMS_IMPUTED.pdf"),
+       width = 9, height = 5)
+  emulandice2::plot_timeseries("sims", plot_level)
+  # Need to tidy and fix [Note: copied from SIM.pdf]
+  #emulandice2::plot_scatter("sims", "none", plot_level) # shown in SA plots as black dots (not always RCPs)
+  # Need to add sims option to plot SLE histograms
+  #emulandice2::plot_distributions("sims", plot_level) # xxx check if doing anything or covered by plot_design...
+  dev.off()
+
+}
 
 # ________________----
 #' # Build emulator
@@ -2395,7 +2431,7 @@ to_save <- c("climate_data", # CLIMATE MODEL SIMULATION DATA
              "ice_data", # ALL SELECTED ICE MODEL SIMULATION DATA
              "YY", # ice_data or subset of ice_data, with any imputed values
              "Xtrain", "Ytrain", # training data (emulator may not use GSAT columns)
-             "obs_data", # OBSERVATION DATA
+             "obs_data", "obs_change", "obs_err", # OBSERVATION DATA (full data, total, and err in total)
              "inputs_preprocess", "inputs_ext", # Paths for package data
              "out_name", # General part of all output filenames
              "outdir", "logfile_build", # Used to write output in emulator function (see below)

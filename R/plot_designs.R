@@ -166,20 +166,15 @@ plot_designs <- function(data_type, plot_level = 0) {
               xlab = GSAT_lab[[temps_list_names[tt]]],
               ylab = paste("Sea level contribution at",yy,"(cm SLE)") )
 
-        # PLOT OBSERVATIONS # xxx not plotting?
+        # PLOT OBSERVATIONS # xxx not plotting? [fixed now I think]
         if (yy == cal_end) {
-          abline( h = obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"],
-                  col = grey(0.2, 0.4), lwd = 1.6)
-          rect( min(plot_temps, na.rm = TRUE),
-                obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] - 3 * obs_data[obs_data$Year == cal_end,"SLE_sd"],
-                max(plot_temps, na.rm = TRUE),
-                obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] + 3 * obs_data[obs_data$Year == cal_end,"SLE_sd"],
+          abline( h = obs_change, col = grey(0.2, 0.4), lwd = 1.6)
+          rect( min(plot_temps, na.rm = TRUE), obs_change - 3 * obs_err,
+                max(plot_temps, na.rm = TRUE), obs_change + 3 * obs_err,
                 col = grey(0.2,0.04), border = "black", lwd = 0.5, lty = 5)
           if (plot_level > 2) {
-            rect( min(plot_temps, na.rm = TRUE),
-                  obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] - 3 * total_err[obs_data$Year == cal_end],
-                  max(plot_temps, na.rm = TRUE),
-                  obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] + 3 * total_err[obs_data$Year == cal_end],
+            rect( min(plot_temps, na.rm = TRUE), obs_change - 3 * tot_err,
+                  max(plot_temps, na.rm = TRUE), obs_change + 3 * tot_err,
                   col = grey(0.2,0.03), border = "black", lwd = 0.5, lty = 3)
           }
         } # plot obs
@@ -187,6 +182,7 @@ plot_designs <- function(data_type, plot_level = 0) {
         leg_y <- 0.95 * max( ice_data[ , paste0("y", yy) ], na.rm = TRUE)
 
         # Plot simulations
+        # xxx not plotting when called from main.R
         for (scen in scenario_list) {
           if ( length(ice_data[ ice_data$scenario == scen, paste0("y", yy) ]) > 0 ) {
             points( plot_temps[ice_data$scenario == scen],
@@ -229,6 +225,7 @@ plot_designs <- function(data_type, plot_level = 0) {
                   ylab = paste("Sea level contribution at",yy,"(cm SLE)") )
 
             # Overplot continuous inputs in scenario colours
+            # xxx this is failing when calling from main.R
             if (! is.character(ice_data[ 1, pp ])){
 
               leg_y <- 0.95 * max(ice_data[ , paste0("y", yy) ], na.rm = TRUE)
@@ -247,18 +244,13 @@ plot_designs <- function(data_type, plot_level = 0) {
 
               # PLOT OBSERVATIONS
               if (yy == cal_end) {
-                abline( h = obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"],
-                        col = grey(0.2, 0.4), lwd = 1.6)
-                rect( min(param_plot, na.rm = TRUE),
-                      obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] - 3 * obs_data[obs_data$Year == cal_end,"SLE_sd"],
-                      max(param_plot, na.rm = TRUE),
-                      obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] + 3 * obs_data[obs_data$Year == cal_end,"SLE_sd"],
+                abline( h = obs_change, col = grey(0.2, 0.4), lwd = 1.6)
+                rect( min(param_plot, na.rm = TRUE), obs_change - 3 * obs_err,
+                      max(param_plot, na.rm = TRUE), obs_change + 3 * obs_err,
                       col = grey(0.2,0.04), border = "black", lwd = 0.5, lty = 5)
                 if (plot_level > 2) {
-                  rect( min(param_plot, na.rm = TRUE),
-                        obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] - 3 * total_err[obs_data$Year == cal_end],
-                        max(param_plot, na.rm = TRUE),
-                        obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"] + 3 * total_err[obs_data$Year == cal_end],
+                  rect( min(param_plot, na.rm = TRUE), obs_change - 3 * tot_err,
+                        max(param_plot, na.rm = TRUE), obs_change + 3 * tot_err,
                         col = grey(0.2,0.03), border = "black", lwd = 0.5, lty = 3)
                 }
               } # plot obs
