@@ -1345,9 +1345,12 @@ if (i_s %in% c("AIS","GIS") && do_regions) {
   # Calculate adjusted mean fractions for regions
   if (i_s == "AIS") {
 
-    region_names <- c( "WAIS1", "WAIS2", "WAIS3", # ASE, Ross, RF
-                       "PEN",
-                       paste0("EAIS", 1:7) )
+    if (reg == "ALL") region_names <- c( "WAIS1", "WAIS2", "WAIS3", # ASE, Ross, RF
+                                         "PEN",
+                                         paste0("EAIS", 1:7) )
+    if (reg == "WAIS") region_names <- c( "WAIS1", "WAIS2", "WAIS3")
+    if (reg == "PEN") region_names <- "PEN"
+    if (reg == "EAIS") region_names <- paste0("EAIS", 1:7)
 
     # xxxx Skip until making new CSV file, as it needs to match main dataset
     # hard-coded fractions region_fracs are after skipped code
@@ -1502,8 +1505,21 @@ if (i_s %in% c("AIS","GIS") && do_regions) {
     region_fracs[[ "EAIS6" ]] <- 0.049
     region_fracs[[ "EAIS7" ]] <- 0.007
 
+    # Select for AIS sector
+    if (reg %in% c("WAIS", "EAIS", "PEN")) {
 
-  }
+      region_fracs <- region_fracs[ names(region_fracs) %in% region_names ]
+
+      # Normalise fractions
+      region_fracs <- lapply(region_fracs, function(x) {x / sum(unlist(region_fracs[ names(region_fracs) %in% region_names ] ))})
+
+    }
+
+    # Check fractions sum to 1
+    stopifnot( sum(unlist(region_fracs)) - 1.0 < 1e4 )
+
+
+  } # AIS
 
 } # ice sheet regions
 
