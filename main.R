@@ -71,7 +71,7 @@ stopifnot(i_s %in% c("GIS", "AIS", "GLA"))
 cat(sprintf("Region: %s\n", reg))
 stopifnot(reg %in% c("ALL", "WAIS", "EAIS", "PEN", paste0("RGI", sprintf("%02i",1:19))))
 
-# Emulator build file name includes ice model_list and emulator_covar
+# Emulator build file name
 cat(sprintf("Emulator build file: %s\n", emu_file))
 
 # Netcdf name

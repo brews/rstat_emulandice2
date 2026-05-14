@@ -1,20 +1,32 @@
 #!/bin/bash
 #
 # Run AIS analysis
-# ./run_AIS.sh final_year
+# ./run_AIS.sh final_year [build_date]
 # where final_year argument can be 2100, 2150, 2200 or 2300
+#
+# if no build_date specified, use today's date for predicting
+# i.e. only specify build_date if running predict on older build files
 #
 #______________________________________________________
 
 # Specify emulandice2 and results directories
+# Predict call assumes build file is in package directory ./data-raw
+# and looks for climate file in gsat_dir
 emulandice_dir=/Users/tamsinedwards/PROTECT/emulandice2
-gsat_dir=/Users/tamsinedwards/PROTECT/gsat
 results_dir=/Users/tamsinedwards/PROTECT/RESULTS
-
-# Assumes build file is in package directory ./data-raw
-# and climate file is in package directory ./inst/extdata/GSAT
+gsat_dir=/Users/tamsinedwards/PROTECT/gsat
 
 #______________________________________________________
+
+if [ $# -eq 0 ]; then
+    echo "No arguments provided: final_year [build_date]"
+    exit 1
+fi
+
+if [ $# -gt 2 ]; then
+    echo "Too many arguments: final_year [build_date]"
+    exit 1
+fi
 
 # Final year is command line argument
 final_year=$1
@@ -25,52 +37,58 @@ then
      exit 1
 fi
 
-
-# Moved to today's directory
+# Today's date
 now=$(date +'%y%m%d')
-outdir="$results_dir"/"$now"_AIS_ALL_"$final_year" # put all in one
 
-for region in "WAIS" "EAIS" "PEN" # Can be WAIS, EAIS, PEN or ALL
+# Build date defaults to today if not given
+build_date="${2:-$now}"
+
+# Seed for prediction
+seed=2024
+
+# Dated name for directory
+outdir="$results_dir"/"$now"_AIS_ALL_"$final_year" # put all regions in one directory
+
+for region in "ALL" "WAIS" "EAIS" "PEN" # Run total and 3 regions
 do
+
+  ########################################
+  # BUILD
+  ########################################
 
   echo
   echo "run_AIS.sh: build file for region: $region"
 
   Rscript --vanilla -e "library(emulandice2)" -e "source('emulator_build.R')" AIS $region $final_year
 
+  ########################################
+  # PREDICT
+  ########################################
+
   echo
-  echo run AIS: predict
+  echo "run_AIS.sh: predict for region: $region"
 
-  if [ "$final_year" -gt 2200 ]
-  then
-     build_file="AIS_"$region"_Kori_PISM_BISICLES_IMAUICE_pow_exp_10_EMULATOR.RData"
-  fi
-  if [ "$final_year" -le 2200 ]
-  then
-     build_file="AIS_"$region"_Kori_PISM_CISM_ElmerIce_BISICLES_IMAUICE_pow_exp_10_EMULATOR.RData"
-  fi
+  build_file="AIS_"$region"_"$final_year"_"$build_date"_EMULATOR.RData"
 
-  echo $build_file
+  echo "Build date:" $build_date
+  echo "Build file:" $build_file
   echo
 
-  for ssp in "ssp119" "ssp126" "ssp245" "ssp370" "ssp585" "ssp534-over"
+  # IPCC AR6: FaIR 2LM
+  gsat_file=twolayer_SSPs.h5
+
+  echo "GSAT file:" $gsat_file
+
+ for ssp in "ssp119" "ssp126" "ssp245" "ssp370" "ssp534-over" "ssp585"
     do
 
     echo "Scenario:" $ssp
 
-    # IPCC AR6: FaIR 2LM
-    gsat_file=twolayer_SSPs.h5
+   ./emulandice_steer.sh AIS $region ./data-raw/"$build_file" "$gsat_dir"/"$gsat_file" $ssp ./out/AIS_"$region"_"$ssp"_"$final_year"/ $seed AIS_"$region"_"$ssp"_"$final_year"
 
-    # Victor test files: FaIR 3LM
-    # gsat_file="$ssp".temperature.fair.temperature_climate.nc
-
-    echo "GSAT file:" $gsat_file
-
-   ./emulandice_steer.sh AIS $region ./data-raw/"$build_file" "$gsat_dir"/"$gsat_file" $ssp ./out/AIS_"$region"_"$ssp"_"$final_year"/ 2024 AIS_"$region"_"$ssp"_"$final_year"
-
-  done
+ done
 done
 
 # Won't move if predictions exist already
 mkdir $outdir
-mv "$emulandice_dir"/out/AIS* "$emulandice_dir"/data-raw/AIS* $outdir
+mv "$emulandice_dir"/out/AIS* "$emulandice_dir"/data-raw/AIS*.RData $outdir

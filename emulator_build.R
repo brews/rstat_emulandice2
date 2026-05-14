@@ -357,9 +357,9 @@ if (emulator_type == "laGP") {
 
 #' ## Open output file
 
-# Create name for output files
-out_name <- paste0(i_s,"_",reg,"_",paste(model_list, collapse = "_"),
-                   "_", emulator_covar)
+# Create name stem for output files
+out_name <- paste0(i_s,"_",reg,"_", final_year,
+                   "_", format(Sys.time(), "%y%m%d") )
 logfile_build <- paste0(outdir, out_name,"_build.txt")
 
 #______________________________________________________
@@ -2481,9 +2481,8 @@ if (i_s == "GLA") to_save <- c(to_save, "glacier_cap") # Glacier region maximum 
 # Regional fractions
 if (do_regions && i_s %in% c("AIS", "GIS")) to_save <- c(to_save, "region_names", "region_fracs")
 
-# RobustGaSP settings (no need to save emulator_covar as it is in RData name)
-# Not sure if these are needed, as only predict is used
-if (emulator_type == "statGP") to_save <- c(to_save, "lower_bound", "kernel", "alpha")
+# RobustGaSP emulator settings
+if (emulator_type == "statGP") to_save <- c(to_save, "emulator_covar", "lower_bound", "kernel", "alpha")
 
 # laGP settings
 # Need to save these because build and predict are done together
