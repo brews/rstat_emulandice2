@@ -132,6 +132,25 @@ load_obs <- function() {
         obs_file[,1] <- as.numeric(format(as.Date(obs_file[,1],tryFormats = c("%d/%m/%Y")),"%Y"))
       }
 
+      cat("\nload_obs: read", nrow(obs_file), "annual values\n", file = logfile_build, append = TRUE)
+
+      # Discard partial first year in Greenland file
+      if (i_s == "GIS") {
+        cat("\nload_obs: discarding values before 1972\n", file = logfile_build, append = TRUE)
+        obs_file <- obs_file[ obs_file$Date >= 1972, ]
+        cat("\nload_obs: now", nrow(obs_file), "annual values\n", file = logfile_build, append = TRUE)
+      }
+
+      # Shift dates by 1 as per convention, and add baseline row
+      # so first row is zero and series ends at 2024 (as in IMBIE figure, and GlaMBIE "end_date")
+      # Basically this is equivalent to shifting from 31/12/XX to 1/12/(XX+1)
+      cat("\nload_obs: shifting dates by +1 so zero contribution in first row\n", file = logfile_build, append = TRUE)
+      obs_file[, 1] <- obs_file[, 1] + 1
+
+      # Add baseline row: zero sea level contribution in first year
+      obs_file <- rbind(rep(0.0, 3), obs_file)
+      obs_file[1, 1] <- obs_file[2, 1] - 1
+
       # Convert cumulative Gt mass change to mm SLE
       obs_file[,2:3] <- obs_file[,2:3] / 362.5
       obs_file[,2] <- -1.0 * obs_file[,2]
@@ -139,9 +158,6 @@ load_obs <- function() {
       names(obs_file) <- c( "Year", "SLE", "SLE_sd")
 
     }
-
-    # Uncertainties are negative relative to mean in IMBIE
-    obs_file[,3] <- -1 * obs_file[,3]
 
   } # ice sheets
 

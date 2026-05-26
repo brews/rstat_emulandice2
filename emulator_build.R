@@ -399,56 +399,69 @@ if (i_s == "GLA") glacier_cap <- emulandice2::get_glacier_cap(reg)
 # Calibration dates --------
 #' ## Baseline and calibration dates
 
-# Ice sheets: Otosaka et al. (2023) IMBIE is 1992-2020
-# New IMBIE3 ends in 2023
-# Glaciers: Hugonnet et al. (2021) is 2000-2020
-if (i_s == "AIS") cal_end <- 2023
-if (i_s == "GIS") cal_end <- 2023
-if (i_s == "GLA") cal_end <- 2020 # because OGGM fails if too early xxx obsolete?
+# Ice sheets: IMBIE3 (Otosaka et al., in review)
+# Glaciers: default is GlaMBIE (The GlaMBIE Team, 2025)
+#           and additional option is Hugonnet et al. (2021)
 
-if (deliverable_test) cal_end <- 2020
-
-# Start of calibration period
-# xxx Note cal_start MUST be same as baseline in current code (and makes sense)
-
-# PROTECT: Earliest Greenland = 1960, Antarctic = 1950, glaciers = 1980
-
-# XXX Implement different baselines for 2100/50 and 2300?
+# Start and end of calibration period
+# NOTE: all emulation and calculations in emulandice2 build stage are done relative to cal_start
+# Predict stage then re-baselines by subtracting a later year, e.g. 2005
 
 # Antarctica
 if (i_s == "AIS") {
 
-  # Dates to use later
-  if ( final_year > 2150) { cal_start <- 1979
-  } else cal_start <- 1996 # CISM 1996; Elmer/ice 2000; BISICLES starts in 2007; IMAUICE in 1950
+  # Use start of IMBIE, or earliest start date of all but 1 model to avoid imputing too much
+  # Checked % original sims too
+  if ( final_year > 2150) { cal_start <- 1979 # Long-term: Kori, PISM and IMAUICE start in 1950/1; BISICLES 2007 but impute
+  } else cal_start <- 1996 # Short-term: Kori, PISM and UFEMISM 1980/81; Kori 1981; CISM 1996; Elmer/ice 2000 so impute
 
-  if (deliverable_test) cal_start <- 2000
+  # End of IMBIE is 31/12/2023 which means using next year for annual values
+  cal_end <- 2024
+
 }
 
 # Greenland
 if (i_s == "GIS") {
-  if (final_year > 2100) { # CISM overlap with IMBIE3
-    cal_start = 1972 # 1971 when final IMBIE3
+
+  # Use start of IMBIE, or earliest start date of all but 1 model to avoid imputing too much
+  # Checked % original sims too
+  if (final_year > 2100) { # Long-term: CISM starts in 1960
+    cal_start = 1972
   } else {
-    cal_start = 1995 # Elmer/Ice overlap with IMBIE3
-  } # xxx change to 1995 when decoupled baseline
-  if (deliverable_test) cal_start <- 2000
+    cal_start = 1990 # Short-term: IMAUICE 1960; GISM 1990; Elmer/Ice 1995
+  }
+
+  # End of IMBIE is 31/12/2023 which means using next year for annual values
+  cal_end <- 2024
 }
 
 # Glaciers
-if (i_s == "GLA") cal_start = 2000
+if (i_s == "GLA") {
 
-# Checks for current data ranges: better to check against data file! xxx
+  # Both GlaMBIE and Hugonnet et al. start in 2000
+  cal_start <- 2000
 
-# IMBIE and GLAMBIE end in 2023
-stopifnot(cal_end <= 2023)
+  # End of datasets - use next year as date because annual values
+  if (glacier_data == "GlaMBIE") cal_end <- 2024 # GlaMBIE is newer: to 31/12/2023
+  if (glacier_data == "Hugonnet") cal_end <- 2020 # Hugonnet is to 31/12/2019
+}
 
-# IMBIE3 start dates
+# Over-ride if wanting to run deliverable options (obsolete)
+if (deliverable_test) {
+  cal_start <- 2000
+  cal_end <- 2020
+}
+
+# IMBIE3 start dates check in case moved
 if (i_s == "AIS") stopifnot( cal_start >= 1979 )
-if (i_s == "GIS") stopifnot( cal_start >= 1971 )
+if (i_s == "GIS") stopifnot( cal_start >= 1972 )
 
-# GLAMBIE start date
+# GLAMBIE and Hugonnet start date check
 if (i_s == "GLA") stopifnot( cal_start >= 2000 )
+
+# All datasets end about the same time
+stopifnot( cal_end <= 2024 )
+if (i_s == "GLA" && glacier_data == "Hugonnet") stopifnot( cal_end <= 2020 )
 
 # Construct emulated time series
 if (deliverable_test) {
@@ -995,6 +1008,8 @@ if (i_s == "GLA" && glacier_data == "Hugonnet") {
   obs_change <- obs_data[obs_data$Year == obs_period, "SLE"]
   obs_err <- obs_data[obs_data$Year == obs_period, "SLE_sd"]
 } else {
+  stopifnot( cal_start %in% obs_data[, "Year"] )
+  stopifnot( cal_end %in% obs_data[, "Year"] )
   obs_change <- obs_data[obs_data$Year == cal_end,"SLE"] - obs_data[obs_data$Year == cal_start, "SLE"]
   obs_err <- obs_data[obs_data$Year == cal_end,"SLE_sd"]
   obs_period <- paste0( cal_start, "-", cal_end)
@@ -2476,7 +2491,9 @@ if ( i_s == "GIS" && final_year > 2100) {
   to_save <- c(to_save, "climate_data_fixed") # Climate forcings fixed post-2100
 }
 
-if (i_s == "GLA") to_save <- c(to_save, "glacier_cap") # Glacier region maximum contributions
+# Glacier region maximum contributions
+# Flag for GlaMBIE or Hugonnet
+if (i_s == "GLA") to_save <- c(to_save, "glacier_cap", "glacier_data")
 
 # Regional fractions
 if (do_regions && i_s %in% c("AIS", "GIS")) to_save <- c(to_save, "region_names", "region_fracs")

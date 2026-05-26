@@ -14,7 +14,7 @@
 # Greenland, Antarctica, and glacier regions (19) from EU H2020 PROTECT project.
 # These simulations start between 1950 and 2005 and end between 2100-2300.
 #
-# Emulator projections here (main.R) usually begin in 1995, 2000 or 2005 ('cal_start')
+# Emulator projections here (main.R) begin in 'cal_start' year
 # and end between 2100 and 2300 ('final_year').
 #
 #_______________________________________________________________________________
