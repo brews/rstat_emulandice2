@@ -152,8 +152,8 @@ select_sims <- function(select_type) {
       # Restrict dataset
       ice_data <- ice_data[ complete_sel , ]
 
-      cat( sprintf("\nAfter applying completion thresholds of %.0f%% to OGGM and %0.f%% to GO: %i\n",
-                   complete_thresh[["OGGM"]], complete_thresh[["GO"]], dim(ice_data)[1]),
+      cat( sprintf("\nAfter applying completion thresholds of %.0f%% to OGGM and %.0f%% to GO: %i\n",
+                   100.0*complete_thresh[["OGGM"]], 100.0*complete_thresh[["GO"]], dim(ice_data)[1]),
            file = logfile_build, append = TRUE )
 
     }
