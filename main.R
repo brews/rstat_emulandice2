@@ -198,7 +198,10 @@ total_err <- sqrt(obs_data[,"SLE_sd"]^2 + model_err^2)
 
 # Save for total change e.g. for plots
 # xxx TODO: multiple time periods for IMBIE
-if (i_s == "GLA" && glacier_data == "Hugonnet") { tot_err <- total_err
+glacier_data <- "Hugonnet" # XXX TEMP FIX FOR 260514 GLA build files which didn't save this
+
+# Select total change for Hugonnet data, or end year for annual observations
+if (i_s == "GLA" && glacier_data == "Hugonnet") { tot_err <- total_err[obs_data$Year == "2000-01-01_2020-01-01"]
 } else tot_err <- total_err[obs_data$Year == cal_end]
 
 cat(paste0("\nObserved change (", cal_start,"-", cal_end, "):\n"), file = logfile_results, append = TRUE)
